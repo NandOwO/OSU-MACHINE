@@ -44,6 +44,9 @@ async function boot(): Promise<void> {
   await preloadFactory(library);
   const machine = new KioskMachine(store);
   const app = new KioskApp({ root, canvas, machine, library, manual });
+  // Option B: osu! plays the maps. ?source=tosu (real osu! + tosu) or ?source=mock (simulation).
+  const source = params.get("source");
+  if (source === "tosu" || source === "mock") (await import("./osuMode.js")).installOsuMode(app, source);
   app.start();
   // End a session that nobody is touching.
   if (!manual) setInterval(() => machine.checkInactivity(machine.cfg.session.inactivitySeconds * 1000), 5000);

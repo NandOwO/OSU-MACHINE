@@ -54,6 +54,8 @@ export class KioskApp {
   private audioCache = new Map<string, AudioBuffer>();
   private stopPreview: (() => void) | null = null;
 
+  /** Option B: osu! (real or simulated) plays the maps and this shell only runs the machine around it. */
+  osu: { source: "tosu" | "mock"; push: (s: import("../osu/types.js").OsuSnapshot) => void; status: string } | null = null;
   skinIdx = 0;
   selected: LibEntry | null = null;
   tutorialStep: 1 | 2 | 3 = 1;
@@ -75,7 +77,7 @@ export class KioskApp {
     });
     window.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.shiftKey && e.code === "KeyO") { e.preventDefault(); openOperator(this); }
-      if (e.key === "Escape" && this.machine.screen === "playing") this.abandon();
+      if (e.key === "Escape" && this.machine.screen === "playing" && !this.osu) this.abandon();
     });
   }
 
@@ -147,7 +149,7 @@ export class KioskApp {
     this.screenEl?.remove();
     const s = this.machine.screen;
     if (s === "idle") this.startAttract(); else if (s !== "tutorial") this.stopAmbient();
-    if (s === "playing") { this.screenEl = null; return; }
+    if (s === "playing" && !this.osu) { this.screenEl = null; return; }
     const next = SCREENS[s](this);
     this.screenEl = next;
     this.root.append(next);

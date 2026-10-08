@@ -53,6 +53,7 @@ const TUTORIAL = [
   { head: "3/3  COMBO Y PUNTOS", text: "CADA GOLPE SEGUIDO SUBE EL COMBO Y MULTIPLICA TUS PUNTOS. NO FALLES." },
 ];
 function tutorial(app: KioskApp): HTMLElement {
+  if (app.osu) return osuTutorial(app);
   const s = el("div", "screen");
   s.style.justifyContent = "flex-end"; s.style.paddingBottom = "4vh";
   const step = TUTORIAL[app.tutorialStep - 1]!;
@@ -107,6 +108,7 @@ function skin(app: KioskApp): HTMLElement {
 let mapScroll = 0, lastMapIdx = 0;
 
 function map(app: KioskApp): HTMLElement {
+  if (app.osu) return osuWaiting(app);
   const lib = app.library, m = app.machine, groups = lib.groups();
   const s = el("div", "screen mapsel");
   if (!groups.length) {
@@ -175,14 +177,64 @@ function map(app: KioskApp): HTMLElement {
   return s;
 }
 
+// ------------------------------------------------------------------ option B: osu! plays the maps
+
+const OSU_TUTORIAL = [
+  { head: "1  ELIGE TU MAPA", text: "EN LA PANTALLA DE OSU! ELIGE UN MAPA Y JUEGA. ANTES ELEGISTE TU SKIN AQUI." },
+  { head: "2  TIEMPO Y CLIC", text: "HAZ CLIC CUANDO EL ANILLO TOQUE EL CIRCULO. EN LOS SLIDERS MANTEN EL CLIC Y SIGUE LA BOLA." },
+  { head: "3  TICKETS", text: "MAS PUNTOS, MAS TICKETS. SIN MODS. REINTENTAR O CAMBIAR DE MAPA USA OTRA JUGADA. SIN TARJETA SE PIERDEN." },
+];
+
+function osuTutorial(app: KioskApp): HTMLElement {
+  const s = el("div", "screen");
+  const video = document.createElement("video");
+  video.src = "promo.mp4"; video.autoplay = true; video.muted = true; video.loop = true; video.className = "tut-video";
+  video.addEventListener("error", () => video.remove());
+  const card = el("div", "card");
+  const row = el("div", "btn-row");
+  const list = el("div", "osu-steps");
+  for (const t of OSU_TUTORIAL) { const it = el("div", "osu-step"); it.append(el("b", "", t.head), el("span", "", t.text)); list.append(it); }
+  row.append(button("LISTO", () => { app.tutorialStep = 1; app.machine.finishTutorial(); }, "primary", "tut-next"), button("SALTAR", () => { app.tutorialStep = 1; app.machine.finishTutorial(); }, "", "tut-skip"));
+  card.append(el("h2", "title", "COMO SE JUEGA"), list, row);
+  s.append(video, card);
+  return s;
+}
+
+/** Shown while osu! is in front: plays left, status, and (in the simulation) a panel that plays scripted games. */
+function osuWaiting(app: KioskApp): HTMLElement {
+  const m = app.machine, o = app.osu!;
+  const s = el("div", "screen");
+  const playing = m.screen === "playing";
+  s.append(el("h2", playing ? "title yellow" : "title", playing ? "JUGANDO EN OSU!" : "JUEGA EN OSU!"));
+  s.append(playDots(m.playsLeft, m.cfg.credits.playsPerDeposit));
+  s.append(el("div", "note", playing ? "TERMINA LA CANCION PARA VER TUS TICKETS." : "ELIGE UN MAPA EN OSU! Y JUEGA. CADA INTENTO USA UNA JUGADA."));
+  s.append(el("div", "note", `ESTADO: ${o.status}`));
+  if (o.source === "mock") {
+    const panel = el("div", "card mockpanel");
+    panel.append(el("div", "note", "SIMULACION DE OSU! (SIN OSU! INSTALADO)"));
+    const groups = app.library.groups();
+    const sel = document.createElement("select"); sel.id = "mock-map";
+    for (const e of app.library.entries) { const o2 = document.createElement("option"); o2.value = e.mapKey; o2.textContent = `${e.entry.beatmap.metadata.title} [${e.entry.beatmap.metadata.version}]`; sel.append(o2); }
+    if (app.selected) sel.value = app.selected.mapKey;
+    const row = el("div", "btn-row");
+    const kinds: [string, string][] = [["complete", "COMPLETAR"], ["sloppy", "JUGAR MAL"], ["fail", "PERDER VIDA"], ["abandon", "SALIR A MEDIAS"], ["retry", "REINTENTAR"], ["mods", "CON MODS"]];
+    for (const [k, label] of kinds) row.append(button(label, () => { void import("./osuMode.js").then((mod) => mod.runMock(app, sel.value, k)); }, "", "mock-" + k));
+    panel.append(sel, row);
+    if (!groups.length) panel.append(el("div", "note", "IMPORTA UN MAPA PRIMERO."));
+    s.append(panel);
+  }
+  s.append(button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
+  return s;
+}
+
 // ------------------------------------------------------------------ results
 
 function results(app: KioskApp): HTMLElement {
   const m = app.machine, r = m.results!, o = r.outcome;
   const s = el("div", "screen");
   const rk = rankOf({ ...o, accuracy: o.accuracy });
-  s.append(el("h2", o.failed ? "title" : "title yellow", o.failed ? "FALLASTE" : "COMPLETADO"));
-  if (o.failed) { const t = s.querySelector("h2") as HTMLElement; t.style.color = "var(--judge-miss)"; t.style.textShadow = "0 0 14px var(--judge-miss)"; }
+  s.append(el("h2", o.failed || o.invalid ? "title" : "title yellow", o.invalid ? "PARTIDA NO VALIDA" : o.failed ? "FALLASTE" : "COMPLETADO"));
+  if (o.failed || o.invalid) { const t = s.querySelector("h2") as HTMLElement; t.style.color = "var(--judge-miss)"; t.style.textShadow = "0 0 14px var(--judge-miss)"; }
   const top = el("div", "btn-row"); top.style.alignItems = "center"; top.style.gap = "4vw";
   top.append(el("div", `rank ${rk}`, rk));
   const col = el("div"); const score = el("div", "big", "0"); score.id = "score";
@@ -192,8 +244,8 @@ function results(app: KioskApp): HTMLElement {
   const st = el("div", "stats");
   for (const [cls, lbl, v] of [["s300", "300", o.n300], ["s100", "100", o.n100], ["s50", "50", o.n50], ["s0", "FALLOS", o.miss]] as const) { const c = el("div", cls); c.append(el("span", "", lbl), el("b", "", String(v))); st.append(c); }
   s.append(st);
-  const tk = el("div", "big", o.failed ? "SIN TICKETS: PERDISTE LA VIDA" : r.tickets > 0 ? `+${r.tickets} TICKETS` : r.ticketsLost > 0 ? `SIN TARJETA: PERDISTE ${r.ticketsLost} TICKETS` : "0 TICKETS"); tk.id = "tickets-earned";
-  if (o.failed) { tk.style.color = "var(--judge-miss)"; tk.style.fontSize = "1.8vw"; }
+  const tk = el("div", "big", o.invalid ? `SIN TICKETS: ${o.invalid.toUpperCase()}` : o.failed ? "SIN TICKETS: PERDISTE LA VIDA" : r.tickets > 0 ? `+${r.tickets} TICKETS` : r.ticketsLost > 0 ? `SIN TARJETA: PERDISTE ${r.ticketsLost} TICKETS` : "0 TICKETS"); tk.id = "tickets-earned";
+  if (o.failed || o.invalid) { tk.style.color = "var(--judge-miss)"; tk.style.fontSize = "1.8vw"; }
   if (r.ticketsLost > 0) { tk.style.color = "var(--judge-miss)"; tk.style.fontSize = "1.8vw"; }
   s.append(tk);
   if (r.rank !== null) s.append(el("div", "sub blink", `ENTRASTE AL TOP 50 - PUESTO #${r.rank}`));
@@ -314,5 +366,5 @@ function prizes(app: KioskApp): HTMLElement {
 }
 
 export const SCREENS: Record<Screen, (app: KioskApp) => HTMLElement> = {
-  idle, credited, tutorial, skin, map, playing: () => el("div"), results, name, ranking, prizes,
+  idle, credited, tutorial, skin, map, playing: (app) => (app.osu ? osuWaiting(app) : el("div")), results, name, ranking, prizes,
 };

@@ -117,3 +117,9 @@ button.primary { border-color: var(--neon-pink); background: rgb(255 46 136 / 0.
 @keyframes selflash { 0% { background: rgb(0 229 255 / 0.45); } }
 @keyframes thumbpop { 0% { transform: scale(0.85); } }
 @media (prefers-reduced-motion: reduce) { .group, .detail > *, .detail .cover, .chip { animation: none !important; transition: none !important; } }
+
+/* option B */
+.tut-video { width: 54vw; max-height: 34vh; border-radius: 1vw; border: 3px solid var(--neon-cyan); object-fit: cover; }
+.osu-steps { display: flex; flex-direction: column; gap: 1.2vh; text-align: left; margin: 1vh 0 2vh; }
+.osu-step { display: grid; grid-template-columns: 14vw 1fr; gap: 1.4vw; align-items: baseline; font: 0.95vw/1.6 var(--font-arcade); color: var(--text-dim); } .osu-step b { color: var(--neon-yellow); font-weight: normal; }
+.mockpanel select { font: inherit; background: var(--bg-1); color: var(--text); border: 2px solid var(--text-dim); border-radius: 0.5vw; padding: 0.6vh 0.6vw; max-width: 60vw; }

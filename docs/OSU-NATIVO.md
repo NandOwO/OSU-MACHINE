@@ -117,20 +117,27 @@ Mitigacion: el vigilante solo paga tickets si se cumplen las reglas del punto 4,
 - tosu es de codigo abierto y solo **lee** la memoria (herramienta comun para overlays); su uso con cuenta oficial puede tener reglas del juego, por lo que se recomienda **modo offline / sin cuenta** en la maquina.
 - Las marcas osu! pertenecen a sus duenos; para un proyecto academico basta con indicarlo.
 
-## 9. Hitos propuestos
+## 9. Hitos
 
-| # | Entrega | Verificable aqui |
+| # | Entrega | Estado |
 |---|---|---|
-| B1 | `PlaySource` + refactor para que el shell use `EngineSource` sin cambios de comportamiento | si (tests) |
-| B2 | `MockTosuServer` + `TosuSource` + mapeo a `PlayOutcome` + conteo de jugadas/abandono/fallo | si (tests + e2e con la maquina completa) |
-| B3 | Reglas de mods y verificacion con `.osr` | si (con replays de prueba) |
-| B4 | Vigilante (lanzar/relanzar osu! y tosu, escribir `Skin` en la config), script de Windows | solo parcial (sin osu!) |
-| B5 | Prueba real en Windows con osu!stable + tosu; ajustar nombres de campos | **tu** |
-| B6 | Overlay transparente con HUD de tickets (opcional) | no |
+| B1 | `OsuSnapshot`/`SnapshotFeed` como costura entre osu! y la maquina (`src/osu/types.ts`); el motor propio sigue igual | hecho |
+| B2 | `OsuBridge` (inicio, fin, fallo, abandono, reintento, violacion), adaptador `tosu.ts`, `MockTosuServer` WebSocket, simulador de partidas, modo `?source=mock` en el shell | hecho, con tests y e2e |
+| B3 | Mods (solo NoMod), verificacion con `.osr` usando nuestro simulador (tolerancia 3 %) | hecho; probado con un replay real local |
+| B4 | Vigilante (lanzar/relanzar osu! y tosu, escribir `Skin` en la config), script de Windows, busqueda del `.osr` en `Replays/` | pendiente |
+| B5 | Prueba real en Windows con osu!stable + tosu; confirmar nombres de campos en `src/osu/tosu.ts` | pendiente (requiere osu! real) |
+| B6 | Overlay transparente con HUD de tickets (opcional) | no empezado |
 
-## 10. Decisiones abiertas (a confirmar)
+## 10. Decisiones tomadas
 
-1. **Mods permitidos**: solo NoMod, o tambien HD/HR/etc. (cambian el puntaje maximo).
-2. **Donde se elige el mapa**: en el song select de osu! (propuesto) o en el shell (osu! no permite lanzar un mapa concreto desde fuera).
-3. **Verificacion con `.osr`**: activada por defecto (propuesto) o solo registro.
-4. **Tutorial**: video + texto, o conservar el interactivo con nuestro motor.
+1. **Mods**: solo NoMod. Lista ampliable por el operador, salvo Auto/Relax/Autopilot/Cinema/NoFail/SpunOut y mods de velocidad, que nunca pagan.
+2. **Verificacion con `.osr`**: activada (modo `strict`): una partida sin replay o cuyo puntaje no coincide (mas del 3 %) no paga ni entra al ranking, pero gasta la jugada.
+3. **Tutorial**: video + texto (3 pasos) en vez del interactivo; el video es `promo.mp4` junto a la pagina, opcional (si no existe se ve solo el texto).
+4. **Mapa**: se elige en el song select de osu!.
+
+## 11. Como probarlo
+
+- Simulacion en el navegador, sin osu!: abrir con `?source=mock` (por ejemplo `npm run dev` y `http://localhost:5173/?source=mock`). En la pantalla "JUEGA EN OSU!" hay un panel con partidas guiadas: completar, jugar mal, perder vida, salir a medias, reintentar y con mods.
+- Con osu! y tosu reales (Windows): abrir con `?source=tosu`; el shell escucha `ws://127.0.0.1:24050/websocket/v2`.
+- Tests: `npm test` (incluye puente, mods, adaptador, servidor WebSocket falso y, si existen los fixtures privados, verificacion de un replay real).
+- e2e del shell con la simulacion: `node tools/e2e-osu-mock.mjs <mapa.osz>` tras `npx vite build`.

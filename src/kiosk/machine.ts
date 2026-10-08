@@ -19,6 +19,8 @@ export interface PlayOutcome {
   skin?: string;
   /** The player ran out of health: no tickets and no ranking. */
   failed?: boolean;
+  /** The play cannot be paid or ranked (forbidden mod, replay does not match, ...). The text is the reason shown to the player. */
+  invalid?: string;
 }
 
 export interface Session {
@@ -184,7 +186,7 @@ export class KioskMachine {
     const s = this.session;
     if (!s || this.screen !== "playing") throw new Error("No hay una partida en curso");
     const t = this.config.tickets;
-    const earned = !o.failed && o.objects >= t.minObjectsForTickets ? ticketsFor(o.score, o.maxScore, t.maxPerPlay, t.curveExponent) : 0;
+    const earned = !o.failed && !o.invalid && o.objects >= t.minObjectsForTickets ? ticketsFor(o.score, o.maxScore, t.maxPerPlay, t.curveExponent) : 0;
     let tickets = 0, lost = 0;
     if (earned > 0) {
       if (s.cardUid) { this.cards.adjust(s.cardUid, earned, `partida ${o.mapKey.slice(0, 12)}`); tickets = earned; s.earned += earned; }
@@ -192,7 +194,7 @@ export class KioskMachine {
       else tickets = earned;
     }
     this.bumpStats((st) => { st.ticketsPaid += tickets; st.ticketsLost += lost; });
-    const info: ResultsInfo = { outcome: o, tickets, ticketsLost: lost, rank: o.failed ? null : this.boards.rankFor(o.mapKey, o.score) };
+    const info: ResultsInfo = { outcome: o, tickets, ticketsLost: lost, rank: o.failed || o.invalid ? null : this.boards.rankFor(o.mapKey, o.score) };
     this.results = info;
     this.screen = "results";
     this.emit({ type: "tickets", amount: earned, lost: lost > 0 });

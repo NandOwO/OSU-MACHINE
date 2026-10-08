@@ -1,4 +1,4 @@
-import LZMA from "lzma";
+import { LZMA_WORKER as LZMA } from "lzma/src/lzma_worker.js";
 
 export interface ReplayFrame {
   time: number;
