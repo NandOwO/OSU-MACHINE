@@ -42,6 +42,10 @@ export class TosuFeed implements SnapshotFeed {
   private ws: WebSocket | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
+  /** Last raw message and when it arrived (for the diagnostic panel). */
+  lastRaw: unknown = null;
+  lastAt = 0;
+  connected = false;
   constructor(private readonly url = "ws://127.0.0.1:24050/websocket/v2") { this.connect(); }
   subscribe(cb: (s: OsuSnapshot) => void): () => void { this.subs.add(cb); return () => this.subs.delete(cb); }
   private connect(): void {
@@ -50,9 +54,10 @@ export class TosuFeed implements SnapshotFeed {
       const ws = new WebSocket(this.url);
       this.ws = ws;
       ws.onmessage = (ev) => {
-        try { const snap = normalizeTosu(JSON.parse(String(ev.data))); for (const cb of this.subs) cb(snap); } catch { /* ignore a bad frame */ }
+        try { const raw = JSON.parse(String(ev.data)); this.lastRaw = raw; this.lastAt = Date.now(); const snap = normalizeTosu(raw); for (const cb of this.subs) cb(snap); } catch { /* ignore a bad frame */ }
       };
-      ws.onclose = () => { this.ws = null; this.timer = setTimeout(() => this.connect(), 1500); };
+      ws.onopen = () => { this.connected = true; };
+      ws.onclose = () => { this.connected = false; this.ws = null; this.timer = setTimeout(() => this.connect(), 1500); };
       ws.onerror = () => ws.close();
     } catch { this.timer = setTimeout(() => this.connect(), 1500); }
   }

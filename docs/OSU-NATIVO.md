@@ -154,3 +154,5 @@ Mitigacion: el vigilante solo paga tickets si se cumplen las reglas del punto 4,
 5. Cuando algo no cuadre con tosu real, los nombres de campos estan en `src/osu/tosu.ts` (funcion `normalizeTosu`); es lo primero que hay que contrastar.
 
 Notas: osu! se reinicia en cada sesion (tarda unos segundos, el shell muestra "PREPARANDO OSU!..."). El vigilante lo relanza si se cae durante la sesion y lo cierra al terminar o si se juega sin jugadas.
+
+6. **Diagnostico**: con `--source=tosu`, `Ctrl+Shift+D` abre un panel que muestra si tosu esta conectado, el ultimo mensaje crudo de tosu y como lo lee POIPIU. Si algo sale en 0 o vacio, copia ese texto: sirve para corregir `normalizeTosu`.

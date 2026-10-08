@@ -1,6 +1,6 @@
 import { OsuBridge, type BridgeEvent } from "../osu/bridge.js";
 import { scenarioSnapshots, type Scenario } from "../osu/mock.js";
-import { ManualFeed, TosuFeed } from "../osu/tosu.js";
+import { ManualFeed, TosuFeed, normalizeTosu } from "../osu/tosu.js";
 import type { OsuSnapshot } from "../osu/types.js";
 import type { KioskApp } from "./kiosk.js";
 import { getHost } from "./host.js";
@@ -20,6 +20,7 @@ export function resolveEntry(app: KioskApp, s: OsuSnapshot): LibEntry | null {
 /** Switches the shell to option B: `tosu` = real osu! through tosu, `mock` = scripted games. */
 export function installOsuMode(app: KioskApp, source: "tosu" | "mock"): void {
   const feed = source === "tosu" ? new TosuFeed() : new ManualFeed();
+  if (feed instanceof TosuFeed) installDiagnostics(app, feed);
   const state = { source, status: source === "tosu" ? "ESPERANDO A OSU!" : "SIMULACION", push: (s: OsuSnapshot) => (feed as ManualFeed).emit(s) };
   app.osu = state;
   const host = source === "tosu" ? getHost() : null;
@@ -62,4 +63,27 @@ export function runMock(app: KioskApp, mapKey: string, kind: string): void {
   let i = 0;
   const step = () => { const s = snaps[i++]; if (!s) return; app.osu!.push(s); if (i < snaps.length) setTimeout(step, 25); };
   step();
+}
+
+/** Ctrl+Shift+D: shows what tosu is sending and how POIPIU reads it, to fix field names on a real machine. */
+export function installDiagnostics(app: KioskApp, feed: TosuFeed): void {
+  let box: HTMLElement | null = null, timer = 0;
+  const text = () => {
+    const raw = feed.lastRaw as Record<string, unknown> | null;
+    const head = `tosu: ${feed.connected ? "CONECTADO" : "SIN CONEXION"}   ultimo mensaje: ${feed.lastAt ? Math.round((Date.now() - feed.lastAt) / 1000) + " s" : "nunca"}   estado kiosco: ${app.machine.screen}\n`;
+    if (!raw) return head + "\n(sin datos todavia)";
+    const n = normalizeTosu(raw as never);
+    return head + "\nLEIDO POR POIPIU:\n" + JSON.stringify(n, null, 1) + "\n\nMENSAJE DE TOSU (recortado):\n" + JSON.stringify(raw, null, 1).slice(0, 6000);
+  };
+  window.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey && e.shiftKey && e.code === "KeyD")) return;
+    e.preventDefault();
+    if (box) { box.remove(); box = null; clearInterval(timer); return; }
+    box = document.createElement("textarea");
+    box.readOnly = true; box.id = "osu-diag";
+    box.style.cssText = "position:fixed;inset:4vh 3vw;z-index:50;background:#07061aee;color:#9ff;border:3px solid #0ff;border-radius:8px;padding:12px;font:12px/1.4 monospace;resize:none";
+    document.body.append(box);
+    const upd = () => { if (box) box.value = text(); };
+    upd(); timer = window.setInterval(upd, 500);
+  });
 }

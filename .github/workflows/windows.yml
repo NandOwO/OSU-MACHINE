@@ -2,7 +2,7 @@ name: Windows build
 on:
   workflow_dispatch:
   push:
-    branches: [claude/magical-davinci-vkds44]
+    branches: [claude/magical-davinci-vkds44, claude/osu-nativo]
     paths: ["src/**", "electron/**", "package.json", "build/**", ".github/workflows/windows.yml"]
 jobs:
   build:
