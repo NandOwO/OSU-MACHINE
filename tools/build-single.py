@@ -23,7 +23,13 @@ for svg in (dist / "assets").glob("*.svg"):
 js = re.sub(r"//# sourceMappingURL=.*", "", js).replace("</script", "<\\/script")
 assert "fonts/PressStart2P" not in css, "font URL was not inlined"
 
-page = f"""<title>POIPIU</title>
+factory = ""
+if len(sys.argv) > 2:  # optional: dir with slimmed .osz/.osk to embed as factory content
+    import json
+    packs = {f.name: base64.b64encode(f.read_bytes()).decode() for f in sorted(Path(sys.argv[2]).iterdir()) if f.suffix.lower() in (".osz", ".osk")}
+    factory = '<script type="application/json" id="factory-content">' + json.dumps(packs) + "</script>\n"
+
+page = f"""<title>POIPIU</title>POIPIU</title>
 <style>
 {css}
 #narrow {{ display: none; position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 30; padding: 10px 14px; border-radius: 10px;
@@ -35,7 +41,7 @@ page = f"""<title>POIPIU</title>
 <script type="module">
 {js}
 </script>
-"""
+{factory}"""
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(page)
 print(out, round(len(page) / 1024), "KB")
