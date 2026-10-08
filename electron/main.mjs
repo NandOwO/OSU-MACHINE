@@ -59,6 +59,8 @@ function registerIpc() {
   const data = join(app.getPath("userData"), "data");
   store = new FileStore(data);
   content = new ContentFolder(join(app.getPath("userData"), "content"));
+  // Factory content ships next to the app (resources/bundled) or in ./bundled when run from source.
+  content.seed(app.isPackaged ? join(process.resourcesPath, "bundled") : join(here, "..", "bundled"));
   ipcMain.on("store:get", (e, key) => { e.returnValue = store.get(key); });
   ipcMain.on("store:set", (e, key, json) => { try { store.set(key, json); e.returnValue = true; } catch { e.returnValue = false; } });
   ipcMain.on("store:remove", (e, key) => { store.remove(key); e.returnValue = true; });

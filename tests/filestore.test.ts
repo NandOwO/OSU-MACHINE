@@ -54,3 +54,17 @@ describe("ContentFolder (installed maps and skins)", () => {
     expect(c.list()).toHaveLength(1);
   });
 });
+
+describe("ContentFolder.seed (factory maps and skins)", () => {
+  it("copies once and respects removals", async () => {
+    const { mkdirSync, writeFileSync } = await import("node:fs");
+    const src = tmp(); const c = new ContentFolder(tmp());
+    writeFileSync(`${src}/a.osz`, "x"); writeFileSync(`${src}/b.osk`, "y"); writeFileSync(`${src}/n.txt`, "z");
+    expect(c.seed(src).sort()).toEqual(["a.osz", "b.osk"]);
+    c.remove("a.osz");
+    expect(c.seed(src)).toEqual([]);
+    expect(c.list().map((f) => f.name)).toEqual(["b.osk"]);
+    expect(c.seed(`${src}/missing`)).toEqual([]);
+    void mkdirSync;
+  });
+});

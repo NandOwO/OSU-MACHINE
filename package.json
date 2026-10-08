@@ -69,6 +69,16 @@
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "artifactName": "POIPIU-Setup-${version}.${ext}"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "bundled",
+        "to": "bundled",
+        "filter": [
+          "*.osz",
+          "*.osk"
+        ]
+      }
+    ]
   }
 }

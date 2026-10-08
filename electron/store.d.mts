@@ -12,4 +12,5 @@ export class ContentFolder {
   read(name: string): Buffer | null;
   add(name: string, bytes: Uint8Array): string;
   remove(name: string): void;
+  seed(srcDir: string): string[];
 }

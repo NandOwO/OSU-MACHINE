@@ -58,4 +58,22 @@ export class ContentFolder {
     return n;
   }
   remove(name) { rmSync(join(this.dir, safeName(name)), { force: true }); }
+  // Copies factory maps/skins once. A name already seeded is never copied again,
+  // so an operator who removes one does not get it back on the next start.
+  seed(srcDir) {
+    if (!existsSync(srcDir)) return [];
+    const marker = join(this.dir, ".seeded.json");
+    let done = [];
+    try { done = JSON.parse(readFileSync(marker, "utf8")); } catch { /* first run */ }
+    const added = [];
+    for (const f of readdirSync(srcDir).filter((f) => CONTENT_RE.test(f))) {
+      if (done.includes(f)) continue;
+      try {
+        if (!existsSync(join(this.dir, safeName(f)))) { this.add(f, readFileSync(join(srcDir, f))); added.push(f); }
+        done.push(f);
+      } catch { /* leave unmarked: retried on next start */ }
+    }
+    if (added.length || !existsSync(marker)) writeAtomic(marker, JSON.stringify(done));
+    return added;
+  }
 }

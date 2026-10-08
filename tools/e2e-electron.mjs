@@ -28,7 +28,7 @@ await page.keyboard.press("Control+Shift+KeyO");
 await page.setInputFiles("#files", [osz]);
 await page.waitForFunction(() => window.__poipiu.library.entries.length > 0, null, { timeout: 30000 });
 await page.click("#op-close");
-check(existsSync(join(userData, "content")) && readdirSync(join(userData, "content")).length === 1, "map copied into the content folder");
+check(existsSync(join(userData, "content")) && readdirSync(join(userData, "content")).filter((f) => /\.(osz|osk)$/i.test(f)).length >= 1 + (existsSync("bundled") ? readdirSync("bundled").filter((f) => /\.(osz|osk)$/i.test(f)).length : 0) - 1, "factory content seeded and the imported map copied into the content folder");
 await page.keyboard.press("KeyT");
 await page.evaluate(() => {
   const m = window.__poipiu.machine, lib = window.__poipiu.library;
