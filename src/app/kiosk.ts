@@ -7,6 +7,7 @@ import { button, countUp, el, fmt, playDots } from "./ui.js";
 import { Library, type LibEntry } from "./library.js";
 import { PlayScene } from "./PlayScene.js";
 import { openOperator } from "./operator.js";
+import { openImport } from "./importer.js";
 import { SCREENS } from "./screens.js";
 import logoUrl from "../../prototipo/logo/poipiu-logo.svg?url";
 
@@ -61,6 +62,13 @@ export class KioskApp {
     this.hardware = new SimulatedHardware({ onCoin: () => this.coin(), onCard: (uid) => this.card(uid) });
     this.buildFrame();
     this.machine.subscribe((e) => this.onMachine(e));
+    // Dropping .osz / .osk files anywhere on the window imports them.
+    window.addEventListener("dragover", (e) => e.preventDefault());
+    window.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length && this.machine.screen !== "playing") void this.importFiles(files);
+    });
     window.addEventListener("keydown", (e) => {
       if (e.ctrlKey && e.shiftKey && e.code === "KeyO") { e.preventDefault(); openOperator(this); }
       if (e.key === "Escape" && this.machine.screen === "playing") this.abandon();
@@ -96,7 +104,9 @@ export class KioskApp {
     this.updateMeters(true);
     const hw = el("div", "hw");
     hw.append(button("MONEDA [C]", () => this.coin(), "", "hw-coin"), button("TARJETA [T]", () => this.card(this.hardware.currentCard), "", "hw-card"));
-    this.bottom.append(el("span", "", "P1"), hw, el("span", "", "CTRL+SHIFT+O OPERADOR"));
+    const right = el("span", "hw");
+    right.append(button("IMPORTAR MAPAS / SKIN", () => this.openImporter(), "primary", "hw-import"), el("span", "", "OPERADOR: CTRL+SHIFT+O"));
+    this.bottom.append(el("span", "", "P1"), hw, right);
   }
 
   /** Redraws the marquee (label, plays, ticket counter). */
@@ -298,6 +308,44 @@ export class KioskApp {
     this.scene?.dispose(); this.scene = null;
     this.machine.abandonPlay();
   }
+
+  openImporter(): void { if (this.machine.screen !== "playing") openImport(this); }
+
+  /**
+   * Installs maps (.osz) and skins (.osk, or an .osz that carries a skin.ini) chosen by the player.
+   * The new map or skin is selected right away. Returns what was installed and what failed.
+   */
+  async importFiles(files: File[]): Promise<{ maps: number; skins: number; errors: string[] }> {
+    const out = { maps: 0, skins: 0, errors: [] as string[] };
+    for (const f of files) {
+      if (!/\.(osz|osk|zip)$/i.test(f.name)) { out.errors.push(`${f.name}: no es un archivo .osz ni .osk`); continue; }
+      this.importStatus(`Leyendo ${f.name}...`);
+      try {
+        const pack = await this.library.add(f.name, new Uint8Array(await f.arrayBuffer()));
+        if (pack.beatmaps.length) {
+          const mine = this.library.entries.filter((e) => e.pack === pack);
+          this.selected = mine[Math.floor(mine.length / 2)] ?? null;
+          out.maps += pack.beatmaps.length;
+        }
+        if (pack.hasSkin && this.library.skins.some((s) => s.id === pack.id)) { this.skinIdx = this.library.skins.findIndex((s) => s.id === pack.id); out.skins += 1; }
+        if (!pack.beatmaps.length && !pack.hasSkin) out.errors.push(`${f.name}: no contiene mapas de osu!standard ni una skin`);
+      } catch (e) { out.errors.push(`${f.name}: ${(e as Error).message}`); }
+    }
+    const parts: string[] = [];
+    if (out.maps) parts.push(`${out.maps} MAPA${out.maps === 1 ? "" : "S"}`);
+    if (out.skins) parts.push(`${out.skins} SKIN${out.skins === 1 ? "" : "S"}`);
+    this.importStatus(parts.length ? `LISTO: ${parts.join(" Y ")}` : "NADA IMPORTADO", out.errors);
+    if (parts.length) this.toast(`IMPORTADO: ${parts.join(" Y ")}`);
+    else if (out.errors.length) this.toast(`NO SE PUDO IMPORTAR: ${out.errors[0]!.toUpperCase().slice(0, 70)}`);
+    if (this.library.persistFailed) this.toast("AVISO: NO SE PUDO GUARDAR PARA LA PROXIMA VEZ");
+    if (["idle", "map", "skin"].includes(this.machine.screen)) this.showScreen();
+    return out;
+  }
+
+  /** The import dialog listens here to show progress. */
+  private statusListener: ((msg: string, errors: string[]) => void) | null = null;
+  onImportStatus(fn: ((msg: string, errors: string[]) => void) | null): void { this.statusListener = fn; }
+  private importStatus(msg: string, errors: string[] = []): void { this.statusListener?.(msg, errors); }
 
   get cards(): string[] { return TEST_CARDS; }
 }

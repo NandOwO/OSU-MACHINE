@@ -87,6 +87,7 @@ npm run electron:dev      # ventana con herramientas de desarrollo (usa el servi
 | `npm run e2e -- mapa.osz skin.osk` | un mapa real con autoplay en Chromium |
 | `xvfb-run -a node tools/e2e-electron.mjs mapa.osz` | el kiosco real: contenido, tarjeta, reglas y ranking sobreviven a un reinicio; salir con Ctrl+Shift+Q |
 | `node tools/e2e-live.mjs mapa.osz` | tiempo real: un mouse real acierta círculos y el reloj de audio corre |
+| `node tools/e2e-import.mjs mapa.osz skin.osk otro.osz` | el jugador importa mapas y skin desde la pantalla (botón, arrastrar y soltar, archivos inválidos, quitar) |
 | `node tools/e2e-kiosk.mjs mapa.osz skin.osk` | la máquina completa: tarjeta, tutorial, skin, mapa, 3 partidas con el bot, nombre, ranking y canje |
 
 ## Hoja de ruta

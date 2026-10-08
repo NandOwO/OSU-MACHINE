@@ -96,3 +96,7 @@ button.primary { border-color: var(--neon-pink); background: rgb(255 46 136 / 0.
 .rows { flex-shrink: 0; } .row-r { flex-shrink: 0; }
 .namebox { margin: 2.6vw 0 2vw; }
 .prize button { white-space: nowrap; font-size: 0.7vw; padding: 0.8vh 0.8vw; }
+
+.importer .dropzone { border: 3px dashed var(--text-dim); border-radius: 1vw; padding: 2.4vh 2vw; text-align: center; font: 0.9vw/1.8 var(--font-arcade); color: var(--text-dim); }
+.importer .row { display: flex; gap: 1vw; align-items: center; justify-content: space-between; padding: 0.6vh 0; border-bottom: 1px solid rgb(255 255 255 / 0.1); }
+.bottombar .primary { border-color: var(--neon-pink); background: rgb(255 46 136 / 0.25); }

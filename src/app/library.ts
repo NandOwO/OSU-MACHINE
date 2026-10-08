@@ -50,6 +50,8 @@ export class Library {
   readonly skins: Skin[] = [createDefaultSkin()];
   readonly packs: Pack[] = [];
   private n = 0;
+  /** Set when the archives could not be saved for the next run (storage blocked or full). */
+  persistFailed = false;
   constructor(private readonly store: ContentBackend | null = null) {}
 
   /** Loads everything saved in the content store. */
@@ -71,7 +73,7 @@ export class Library {
     }
     const skin = await loadSkinFromPack(pack);
     if (skin) this.skins.push({ ...skin, name: skin.name || fileName });
-    if (persist) await this.store?.put(fileName, bytes);
+    if (persist && this.store) { try { await this.store.put(fileName, bytes); } catch { this.persistFailed = true; } }
     return pack;
   }
 
@@ -82,7 +84,7 @@ export class Library {
     const si = this.skins.findIndex((s) => s.id === pack.id);
     if (si > 0) this.skins.splice(si, 1);
     this.packs.splice(this.packs.indexOf(pack), 1);
-    await this.store?.remove(fileName);
+    try { await this.store?.remove(fileName); } catch { /* nothing to undo */ }
   }
 
   /** One group per archive, difficulties from easiest to hardest. */

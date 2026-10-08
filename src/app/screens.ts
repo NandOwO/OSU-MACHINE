@@ -23,7 +23,7 @@ function idle(app: KioskApp): HTMLElement {
   let best: { name: string; score: number; map: string } | null = null;
   for (const e of app.library.entries) { const top = app.machine.boards.list(e.mapKey)[0]; if (top && (!best || top.score > best.score)) best = { name: top.name, score: top.score, map: e.entry.beatmap.metadata.title }; }
   s.append(el("div", "note", best ? `TOP: ${best.name}  ${fmt(best.score)}  - ${best.map.toUpperCase()}` : "SIGUE EL RITMO. SUMA PUNTOS. GANA PREMIOS."));
-  if (!app.library.entries.length) s.append(el("div", "note", "SIN MAPAS INSTALADOS. ABRE EL PANEL DE OPERADOR (CTRL+SHIFT+O) Y AGREGA ARCHIVOS .OSZ"));
+  if (!app.library.entries.length) s.append(el("div", "note", "SIN MAPAS TODAVIA: USA EL BOTON IMPORTAR (ABAJO A LA DERECHA) O ARRASTRA UN .OSZ A LA VENTANA"));
   return s;
 }
 
@@ -96,7 +96,9 @@ function skin(app: KioskApp): HTMLElement {
     wrap.append(c);
     if (!app.manual) app.onCleanup(skinPreview(cv, app, i)); else skinPreview(cv, app, i)();
   });
-  s.append(wrap, el("div", "note", "IMPORTA TU PROPIA SKIN (.OSK / .OSZ) DESDE EL PANEL DE OPERADOR."), button("CONFIRMAR", () => app.machine.chooseSkin(), "primary", "skin-ok"));
+  const row = el("div", "btn-row");
+  row.append(button("CONFIRMAR", () => app.machine.chooseSkin(), "primary", "skin-ok"), button("IMPORTAR MI SKIN (.OSK)", () => app.openImporter(), "", "import-open"));
+  s.append(wrap, el("div", "note", "TAMBIEN PUEDES ARRASTRAR UN .OSK A LA VENTANA."), row);
   return s;
 }
 
@@ -107,7 +109,7 @@ function map(app: KioskApp): HTMLElement {
   const s = el("div", "screen mapsel");
   if (!groups.length) {
     s.style.justifyContent = "center";
-    s.append(el("h2", "title", "SIN MAPAS"), el("div", "note", "AGREGA ARCHIVOS .OSZ DESDE EL PANEL DE OPERADOR (CTRL+SHIFT+O)."), button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
+    s.append(el("h2", "title", "SIN MAPAS"), el("div", "note", "IMPORTA UN ARCHIVO .OSZ (O ARRASTRALO A LA VENTANA)."), button("IMPORTAR MAPA (.OSZ)", () => app.openImporter(), "primary", "import-open"), button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
     return s;
   }
   if (!app.selected || !lib.entries.includes(app.selected)) app.selected = groups[0]!.entries[Math.floor(groups[0]!.entries.length / 2)]!;
@@ -144,7 +146,7 @@ function map(app: KioskApp): HTMLElement {
   const actions = el("div", "btn-row");
   const play = button(`JUGAR  (${m.playsLeft})`, () => { void app.startSelectedPlay(); }, "primary", "play");
   play.disabled = m.playsLeft <= 0;
-  actions.append(play, button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
+  actions.append(play, button("IMPORTAR MAPA (.OSZ)", () => app.openImporter(), "", "import-open"), button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
   detail.append(actions);
   s.append(list, detail);
 
