@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import {
+  accuracy,
+  difficultyMultiplier,
+  drainTimeSeconds,
+  hitScore,
+  maxScoreCircles,
+} from "../src/scoring/scoreV1.js";
+
+// Test vectors from DISEÑO.md §5 (D = 5).
+function circlesAllGreat(n: number, d: number) {
+  let combo = 0;
+  let score = 0;
+  for (let i = 0; i < n; i++) {
+    score += hitScore(300, combo, d);
+    combo++;
+  }
+  return score;
+}
+
+describe("ScoreV1 hit score", () => {
+  it("gives no combo bonus to the first two hits", () => {
+    expect(hitScore(300, 0, 5)).toBe(300);
+    expect(hitScore(300, 1, 5)).toBe(300);
+  });
+  it("adds V*(C*D)/25 from the third hit", () => {
+    expect(hitScore(300, 2, 5)).toBe(360);
+  });
+  it("matches the document's vectors", () => {
+    expect(circlesAllGreat(1, 5)).toBe(300);
+    expect(circlesAllGreat(2, 5)).toBe(600);
+    expect(circlesAllGreat(3, 5)).toBe(960);
+    expect(circlesAllGreat(1000, 5)).toBe(30_210_060);
+  });
+  it("closed form agrees with the brute-force sum", () => {
+    for (const n of [3, 10, 194, 1000]) expect(maxScoreCircles(n, 5)).toBe(circlesAllGreat(n, 5));
+  });
+});
+
+describe("difficulty multiplier", () => {
+  it("uses (HP+CS+OD+density)/38*5 rounded, density clamped to 0..16", () => {
+    // Erisu's Insane: HP6 CS3.8 OD8, 355 objects over ~89 s -> density 31.9 -> clamped to 16.
+    expect(difficultyMultiplier({ hp: 6, cs: 3.8, od: 8 }, 355, 88.999)).toBe(4);
+    expect(difficultyMultiplier({ hp: 7, cs: 4, od: 8 }, 432, 88.999)).toBe(5);
+  });
+  it("subtracts breaks from the drain time", () => {
+    expect(drainTimeSeconds(1000, 61000, [{ start: 10000, end: 20000 }])).toBe(50);
+  });
+});
+
+describe("accuracy", () => {
+  it("matches the real score screen of the replay: 236/39/1/7 -> 88.04%", () => {
+    expect(accuracy(236, 39, 1, 7) * 100).toBeCloseTo(88.04, 2);
+  });
+  it("matches the screenshot: 188/6/0/0 -> 97.93% (truncated)", () => {
+    const acc = accuracy(188, 6, 0, 0) * 100;
+    expect(acc).toBeCloseTo(97.938, 3);
+    expect(Math.floor(acc * 100) / 100).toBe(97.93);
+  });
+});

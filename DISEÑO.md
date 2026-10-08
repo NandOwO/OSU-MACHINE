@@ -383,12 +383,31 @@ Datos leídos del archivo `Thericks - DIALOGUE - Deneb to Spica (TV Size) [Erisu
 - **Precisión:** `(300·236 + 100·39 + 50·1) / (300·283) = 74 750 / 84 900 = 88,04 %`.
 - **Por qué sirve:** no tiene mods y trae el movimiento del cursor y las teclas. Con el mapa, se puede **reproducir la partida en el motor** y comprobar que da las mismas cuentas de 300/100/50/miss, el mismo combo máximo y el mismo puntaje.
 - **No coincide con la captura del caso #1** (otra fecha, otro puntaje, otros juicios). Son dos partidas distintas.
-- **Prueba de aceptación:** el motor, alimentado con el replay y el `.osu`, debe dar exactamente 236/39/1/7, combo 321 y puntaje 1 587 776. Mientras no coincida el puntaje, se localiza qué elemento (cabeza, tick, extremo) difiere.
-- **Falta:** el `.osz` (o el `.osu`) de ese mapa. El replay solo guarda el hash, no el mapa. Con el hash `58a613f1…` se confirma que es la dificultad correcta.
+**Resultado de la validación (con el `.osz` recibido).** El hash del replay coincide con la dificultad *Erisu's Insane* del `.osz` (355 objetos: 212 círculos, 142 sliders, 1 spinner). El replay termina en 72 393 ms, justo en el objeto 283 de 355: es una partida cortada, no completa. Se reprodujo en el simulador (`src/sim/replaySim.ts`):
 
-Lo que **no** se puede verificar con el caso #1:
+| | Replay real | Simulador |
+|---|---|---|
+| 300 / 100 / 50 / Miss | 236 / 39 / 1 / 7 | **236 / 39 / 1 / 7** (exacto) |
+| Combo máximo | 321 | **321** (exacto) |
+| Multiplicador de dificultad `D` | — | 4 (HP 6, CS 3,8, OD 8; 355 objetos en 89,0 s) |
+| Puntaje | 1 587 776 | 1 586 542 (**−1 234 puntos, −0,078 %**) |
+
+Lo que quedó confirmado con esto:
+- La fórmula `V + V·(C·D·M)/25` y el cálculo de `D = 4` son consistentes con el replay: el puntaje queda a 0,08 % del real, y las variantes que probé (otras reglas de cola, ventanas no estrictas) quedan mucho más lejos. Esto es un ajuste excelente, no una igualdad exacta, mientras queden los 1 234 puntos sin explicar.
+- Las **ventanas de juicio son estrictas** (`delta < ventana`, no `≤`). Con `≤` el simulador da 239/36/1/7.
+- **Perder la cola de un slider no rompe el combo**; solo baja el juicio del slider. Perder cabeza, tick o repetición sí lo rompe.
+- La cola de un slider se evalúa 36 ms antes de su final (`endTime − 36`), seguida con un radio de `2,4 × R`.
+- El juicio final del slider se calcula con el combo **incluyendo** su cola. Calcularlo con el combo previo da 1 581 294, 5 mil puntos más lejos.
+- El **spinner suma 1 al combo** (sin eso el combo máximo daría 320) y recibe juicio como cualquier objeto.
+- Bonus planos de slider (cabeza 30, repetición 30, cola 30, tick 10) coherentes con el puntaje total.
+
+**Lo que no está resuelto:** los 1 234 puntos de diferencia. La hipótesis más probable son los puntos por giro del spinner (el cursor dio ≈ 5,8 vueltas en sus 1,08 s), que el simulador todavía no modela. No lo cerré porque no tengo verificada la regla exacta de puntos por giro y bonus de ScoreV1, y no quise ajustarla a ojo hasta que el número cuadre. Hasta entonces, la prueba automática exige coincidencia exacta de juicios y combo, y una diferencia de puntaje menor al 0,1 %.
+
+Consecuencia para §4: el máximo de §5 (`300·n + 6·D·(n−1)·(n−2)`) vale solo para mapas de círculos. Con sliders y spinner, el `Max` del mapa se obtiene **simulando una partida perfecta**.
+
+Lo que **no** se puede verificar con el caso #1 (la captura):
 - El puntaje 1 386 005 exige conocer HP, CS, OD, el tiempo de drenaje y la estructura de sliders del mapa, y la captura no muestra el nombre del mapa. Además hay dos íconos de mods sobre el puntaje y no los identifico; si hay un mod con multiplicador, `M ≠ 1`.
-- Para cerrar la validación falta el **`.osz` de ese mapa** (o su nombre y dificultad) y qué mods se usaron. Con el `.osz` se calcula el puntaje esperado y se compara.
+- La captura **no corresponde a ninguna dificultad del `.osz` recibido** (216, 355, 432 y 269 objetos; la captura tiene 194). Es de otro mapa.
 
 **Puntaje máximo de un mapa (para el negocio, §4):**
 solo círculos, todo en 300, sin romper combo:
@@ -592,12 +611,12 @@ Criterio de aceptación: un `.osz` real se carga, suena el preview, el mapa se j
 - Catálogo de premios: definido en §4.2 con precios estimados para Perú.
 
 **Abiertas**
-1. **Validación de ScoreV1** (§5, caso #2): falta el `.osz` de *Deneb to Spica (TV Size) [Erisus' Insane]*, hash `58a613f1f28b2b9388413b4ef5a30dd3`.
-2. **Captura del caso #1**: ¿de qué mapa es? No aparece en la imagen. Sirve de segunda validación si se tiene su `.osz`.
+1. **Puntos de giro del spinner** (§5, caso #2): quedan 1 234 puntos (0,078 %) sin explicar. Se cierra modelando la rotación del spinner con la regla oficial de ScoreV1. Un segundo replay con spinner ayudaría a confirmarla.
+2. **Captura del caso #1**: es de otro mapa (no coincide con ninguna dificultad del `.osz`). Sirve de validación extra si se envía su `.osz`.
 3. **Precio del depósito**: S/ 6 por 3 jugadas es un supuesto sin dato de mercado detrás.
 
 **Resuelta:** los sliders entran en v1 (§5).
 
 ---
 
-*Diseño sin código todavía: el primer paso del plan (§12) es el parser `.osu`.*
+*Estado del código: el plan (§12) lleva hecho el parser `.osu`, la geometría y eventos de sliders, el cálculo de ScoreV1, el lector de `.osr` y un simulador que reproduce replays (`npm test`). Los archivos de validación son de terceros y no se suben al repositorio (`fixtures/README.md`).*
