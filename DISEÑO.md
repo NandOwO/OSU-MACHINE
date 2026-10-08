@@ -189,15 +189,20 @@ La animación: la fila nueva aparece en la posición de inserción, las filas in
     "claimMode": "all"
   },
   "economy": {
-    "depositPrice": 1.0,
-    "prizeUnitCost": 8.0,
+    "currency": "PEN",
+    "depositPrice": 6.0,
+    "prizeUnitCost": 48.0,
     "prizeUnitTickets": 3000,
     "targetPayoutPct": [20, 30]
   },
   "prizes": [
-    { "name": "Llavero", "cost": 500 },
-    { "name": "Peluche chico", "cost": 1500 },
-    { "name": "Funko Pop", "cost": 3000 }
+    { "name": "Funko Pop estándar", "tickets": 3000 },
+    { "name": "Peluche grande (~40 cm)", "tickets": 3500 },
+    { "name": "Audífonos inalámbricos básicos", "tickets": 4000 },
+    { "name": "Parlante Bluetooth portátil", "tickets": 5000 },
+    { "name": "Mouse gamer + mousepad", "tickets": 6000 },
+    { "name": "Funko Pop edición especial", "tickets": 8000 },
+    { "name": "Gamepad inalámbrico", "tickets": 10000 }
   ],
   "leaderboard": {
     "size": 50,
@@ -226,10 +231,10 @@ tickets = round( maxPerPlay × r ^ curveExponent )
 **Valor del ticket.** Todos los premios se valúan con el mismo precio por ticket:
 
 ```
-valor_ticket = prizeUnitCost / prizeUnitTickets = 8,0 / 3000 ≈ 0,00267 unidades
+valor_ticket = prizeUnitCost / prizeUnitTickets = 48 / 3000 = S/ 0,016
 ```
 
-Los costos son en **unidades abstractas** (1 unidad = lo que cuesta un depósito). Como el proyecto es educativo, no hay moneda real.
+**Equivalencia confirmada:** la economía de 8 unidades por Funko sigue vigente, con **1 unidad = 1 depósito = S/ 6,00** (3 jugadas, S/ 2,00 por jugada). El Funko cuesta a la casa `8 × 6 = S/ 48`, aproximadamente la mitad de su precio de venta en tiendas peruanas (listados de S/ 80 a S/ 115 en Falabella Perú). Como el proyecto es educativo, no hay moneda real: son soles simulados.
 
 **Tabla (con `maxPerPlay = 100`, exponente 2, 3 jugadas por depósito, mismo `r` en las 3):**
 
@@ -272,6 +277,24 @@ Los costos son en **unidades abstractas** (1 unidad = lo que cuesta un depósito
 | `depositPrice` | Relación entre lo que entra y lo que sale |
 
 > **Supuestos.** La mezcla de jugadores, el costo del Funko (8 unidades) y el objetivo de 20–30 % son **supuestos míos**, no datos. Hay que reemplazarlos tras observar partidas reales. Los valores de `r` por tipo de jugador son los más inciertos: ScoreV1 castiga mucho los combos rotos, así que un jugador de 85 % de precisión suele tener un `r` bastante menor que 0,85.
+
+### 4.2 Catálogo de premios (mercado peruano)
+
+Todos los premios usan el mismo valor de ticket (S/ 0,016), así que el costo para la casa es `tickets × 0,016`. **El premio más barato es el Funko (3 000 tickets)**, como definiste: no hay premios menores.
+
+| Premio | Tickets | Costo para la casa | Precio de venta aprox. | Depósitos (jugador promedio) |
+|---|---|---|---|---|
+| Funko Pop estándar | 3 000 | S/ 48 | S/ 80–115 | ≈ 29 |
+| Peluche grande (~40 cm) | 3 500 | S/ 56 | S/ 90–120 | ≈ 34 |
+| Audífonos inalámbricos básicos | 4 000 | S/ 64 | S/ 100–130 | ≈ 39 |
+| Parlante Bluetooth portátil | 5 000 | S/ 80 | S/ 110–150 | ≈ 49 |
+| Mouse gamer + mousepad | 6 000 | S/ 96 | S/ 130–180 | ≈ 59 |
+| Funko Pop edición especial | 8 000 | S/ 128 | S/ 200–400 | ≈ 78 |
+| Gamepad inalámbrico | 10 000 | S/ 160 | S/ 200–250 | ≈ 98 |
+
+> **Origen de los precios.** Solo el rango del Funko estándar (S/ 80–115) y el techo de ediciones limitadas (hasta ≈ S/ 400) vienen de listados de Falabella Perú. El resto de los precios de venta son **estimaciones mías** para un catálogo plausible; no los verifiqué con tiendas. Tampoco encontré precios actuales de fichas o partidas en salones de Lima: los S/ 6 por depósito son un supuesto.
+
+Con esta estructura el Funko es lo mínimo que un jugador puede canjear. Si luego quieren premios chicos (golosinas, llaveros) para que los jugadores casuales también ganen algo, se agregan con pocos cientos de tickets y el pago esperado sube en consecuencia.
 
 **Regla de seguridad.** Si el tamaño real de un mapa distorsiona `Max` (por ejemplo, con 2 objetos), se exige un mínimo de objetos para pagar tickets (`minObjectsForTickets`, propuesta: 50).
 
@@ -320,6 +343,27 @@ D = round( ( HP + CS + OD + clamp( n_objetos / t_drenaje_seg × 8, 0, 16 ) ) / 3
 > **Estado de verificación.** No pude abrir la wiki de osu! desde este entorno (el proxy la bloquea). La estructura `V + V·(C·D·M)/25`, el `C = combo − 1` con piso en 0 y la forma de `D` (÷38, ×5, redondeo, densidad acotada a 0–16) coinciden con el resumen de la wiki que devolvió la búsqueda y con mi conocimiento previo, pero **no comparé contra la página**. Antes de dar por cerrado el módulo, validar con un resultado real conocido: tomar un mapa y un replay/puntaje publicado y comprobar que el cálculo da el mismo número.
 
 **Sliders y spinners:** en v1 cada slider se juzga como un círculo (un solo juicio). Los bonus de ticks, extremos y spinners de ScoreV1 se agregan en v2.
+
+> **Consecuencia para la fidelidad con osu!.** En el puntaje oficial el combo cuenta también los ticks y extremos de los sliders (ver el caso de validación de abajo: 331 de combo con solo 194 objetos). Con sliders tratados como círculos, los puntajes de mapas con sliders **no coincidirán** con los de osu!. Las pruebas de coincidencia exacta deben hacerse con un mapa de solo círculos hasta que el scoring de sliders esté implementado.
+
+**Caso de validación #1 (captura real, pendiente de datos del mapa):**
+
+| Dato de la captura | Valor |
+|---|---|
+| Puntaje | 1 386 005 |
+| Precisión mostrada | 97,93 % |
+| Combo máximo | 331x |
+| Great (300) / Ok (100) / Meh (50) / Fallos | 188 / 6 / 0 / 0 |
+| Objetos totales | 194 (suma de los juicios) |
+| Cliente | Stable |
+
+Lo que sí se verifica con la captura:
+- **Precisión:** `(300·188 + 100·6) / (300·194) = 57 000 / 58 200 = 97,938 %`. La captura muestra 97,93 %, o sea coincide cortando (no redondeando) el tercer decimal. La fórmula de §5 queda confirmada.
+- **Combo > objetos:** 331 de combo con 194 objetos prueba que los ticks y extremos de los sliders suman combo en el puntaje oficial.
+
+Lo que **no** se puede verificar todavía:
+- El puntaje 1 386 005 exige conocer HP, CS, OD, el tiempo de drenaje y la estructura de sliders del mapa, y la captura no muestra el nombre del mapa. Además hay dos íconos de mods sobre el puntaje y no los identifico; si hay un mod con multiplicador, `M ≠ 1`.
+- Para cerrar la validación falta el **`.osz` de ese mapa** (o su nombre y dificultad) y qué mods se usaron. Con el `.osz` se calcula el puntaje esperado y se compara.
 
 **Puntaje máximo de un mapa (para el negocio, §4):**
 solo círculos, todo en 300, sin romper combo:
@@ -517,10 +561,15 @@ Criterio de aceptación: un `.osz` real se carga, suena el preview, el mapa se j
 
 ## 13. Decisiones abiertas
 
-1. **Tarjeta y moneda**: ¿pasar la tarjeta da un depósito (3 jugadas) como la moneda, o la tarjeta solo sirve para acumular tickets? La propuesta actual es que da un depósito. Si pagó con moneda y no pasó tarjeta, los tickets se pierden.
-2. **Validación de ScoreV1**: comparar el cálculo de §5 contra un puntaje real publicado de un mapa conocido (la wiki no era accesible desde este entorno).
-3. **Premios**: los nombres y costos de §4 son ejemplos. Falta el catálogo real si quieren mostrarlo.
-4. **Economía**: confirmar el costo del premio (8 unidades), el objetivo de pago (20–30 %) y la mezcla de jugadores de §4.1, o reemplazarlos por tus datos.
+**Resueltas**
+- Tarjeta y moneda: pasar la tarjeta da un depósito (3 jugadas), igual que la moneda. Si se paga con moneda y no se pasa tarjeta, los tickets se pierden.
+- Economía: costo del premio (8 unidades), objetivo de pago (20–30 %) y mezcla de jugadores de §4.1, confirmados.
+- Catálogo de premios: definido en §4.2 con precios estimados para Perú.
+
+**Abiertas**
+1. **Validación de ScoreV1** (§5, caso #1): falta el `.osz` del mapa de la captura y los mods usados.
+2. **Alcance de sliders**: ¿se implementa el scoring de sliders en v1 para acercarse al puntaje oficial, o se valida solo con mapas de círculos y los sliders pasan a v2?
+3. **Precio del depósito**: S/ 6 por 3 jugadas es un supuesto sin dato de mercado detrás.
 
 ---
 
