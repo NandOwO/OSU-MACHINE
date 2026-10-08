@@ -67,7 +67,7 @@ export function runMock(app: KioskApp, mapKey: string, kind: string): void {
 
 /** Ctrl+Shift+D: shows what tosu is sending and how POIPIU reads it, to fix field names on a real machine. */
 export function installDiagnostics(app: KioskApp, feed: TosuFeed): void {
-  let box: HTMLElement | null = null, timer = 0;
+  let box: HTMLTextAreaElement | null = null, timer = 0;
   const text = () => {
     const raw = feed.lastRaw as Record<string, unknown> | null;
     const head = `tosu: ${feed.connected ? "CONECTADO" : "SIN CONEXION"}   ultimo mensaje: ${feed.lastAt ? Math.round((Date.now() - feed.lastAt) / 1000) + " s" : "nunca"}   estado kiosco: ${app.machine.screen}\n`;
