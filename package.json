@@ -14,8 +14,8 @@
     "electron": "vite build && electron electron/main.mjs",
     "electron:dev": "electron electron/main.mjs --dev --url=http://localhost:5173",
     "e2e:electron": "node tools/e2e-electron.mjs",
-    "package:win": "vite build && electron-builder --win nsis zip --x64",
-    "package:win:portable": "vite build && electron-builder --win zip --x64 -c.win.signAndEditExecutable=false"
+    "package:win": "vite build && electron-builder --win nsis zip --x64 --publish never",
+    "package:win:portable": "vite build && electron-builder --win zip --x64 --publish never -c.win.signAndEditExecutable=false"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
