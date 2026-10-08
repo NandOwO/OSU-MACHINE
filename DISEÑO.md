@@ -1,4 +1,4 @@
-# POiSU — Diseño v0.1
+# POIPIU — Diseño v0.2
 
 Réplica del modo **osu!standard** (el de cursor, no mania ni taiko) con temática de máquina arcade. Se juega con monedas o tarjeta, y los mapas se leen desde archivos `.osz`.
 
@@ -11,13 +11,13 @@ Réplica del modo **osu!standard** (el de cursor, no mania ni taiko) con temáti
 | Tema | Decisión | Detalle |
 |---|---|---|
 | Jugadas por depósito | **3 jugadas por depósito** | Cada jugada puede ser un reintento o un cambio de mapa |
-| Tickets por partida | **Configurable** | Fórmula y tope en `config.json` (ver §4) |
+| Tickets por partida | **Configurable, calculados sobre el puntaje relativo al máximo del mapa** | Ver §4 (el puntaje ScoreV1 cruda no sirve, depende de la longitud del mapa) |
 | Nombre en ranking | **Hasta 8 caracteres** | Configurable; por defecto se pide el máximo |
 | Puntaje | **Lo más cercano posible a osu! (ScoreV1)** | Ver §5 |
 | Hardware | **Simulado** | Monedas, tarjeta y tickets con simulador y animaciones (ver §11) |
 | Tickets | **Se acreditan a la tarjeta registrada (UID)** | Saldo persistente por tarjeta |
 | Video promocional | **Hecho con los mapas y el arte del proyecto** | Sin grabación externa |
-| Nombre del proyecto | **POiSU** | Ver nota de nombre en §13 |
+| Nombre del proyecto | **POIPIU** | Tema central: los **puntos** (puntaje y tickets) |
 | Ranking | **Top 50** por mapa, persistente en el kiosco | |
 | Input | Mouse/trackball como cursor; **Z / X** como alternativa | Mecánica de cursor de osu!standard |
 | Plataforma | **App de escritorio en pantalla completa (Electron)** | |
@@ -85,7 +85,7 @@ Wireframes en texto para fijar la disposición. Resolución de diseño: **1920×
 │                                                          │
 │        [ video promocional en loop, 30-45 s ]            │
 │                                                          │
-│                     ▌ POiSU ▐                            │
+│                    ▌ POIPIU ▐                            │
 │                                                          │
 │              >>> INSERT COIN / TAP CARD <<<              │
 │                                                          │
@@ -182,10 +182,17 @@ La animación: la fila nueva aparece en la posición de inserción, las filas in
     "countMapChangeAsPlay": true
   },
   "tickets": {
-    "perScorePoints": 2500,
-    "maxPerPlay": 1000,
+    "maxPerPlay": 100,
+    "curveExponent": 2,
+    "minObjectsForTickets": 50,
     "cardRequired": true,
     "claimMode": "all"
+  },
+  "economy": {
+    "depositPrice": 1.0,
+    "prizeUnitCost": 8.0,
+    "prizeUnitTickets": 3000,
+    "targetPayoutPct": [20, 30]
   },
   "prizes": [
     { "name": "Llavero", "cost": 500 },
@@ -201,9 +208,72 @@ La animación: la fila nueva aparece en la posición de inserción, las filas in
 }
 ```
 
-Cálculo de tickets por partida: `min(floor(puntaje / perScorePoints), maxPerPlay)`.
+### 4.1 Cálculo del negocio
 
-Con estos valores, una partida de ~1 000 000 de puntaje da 400 tickets. El Funko (3 000) necesita unas 8 partidas muy buenas, y el premio más barato (500) se gana con una partida decente. **Estos números son una propuesta a ajustar al ver jugar a alguien**: `perScorePoints` y `prizes` son la palanca.
+**Problema de usar el puntaje crudo.** En ScoreV1 el puntaje máximo crece con el cuadrado de la cantidad de objetos (ver §5): un mapa de 1000 objetos llega a ~30 millones y uno de 300, a ~3 millones. Si los tickets fueran `puntaje / k`, los mapas largos regalarían muchísimos más tickets. Se normaliza contra el máximo del mapa.
+
+**Fórmula de tickets por partida:**
+
+```
+r       = puntaje_ScoreV1 / Max_del_mapa          (0 a 1, ver §5)
+tickets = round( maxPerPlay × r ^ curveExponent )
+```
+
+- `r` mide qué tan cerca estuvo el jugador de la partida perfecta (precisión **y** combo, igual que ScoreV1).
+- `curveExponent = 2` premia más lo bueno: la mitad del puntaje máximo da un cuarto de los tickets.
+- Un mapa fácil y uno difícil pagan igual a igual `r`. El jugador elige el mapa por gusto, no por farmear tickets.
+
+**Valor del ticket.** Todos los premios se valúan con el mismo precio por ticket:
+
+```
+valor_ticket = prizeUnitCost / prizeUnitTickets = 8,0 / 3000 ≈ 0,00267 unidades
+```
+
+Los costos son en **unidades abstractas** (1 unidad = lo que cuesta un depósito). Como el proyecto es educativo, no hay moneda real.
+
+**Tabla (con `maxPerPlay = 100`, exponente 2, 3 jugadas por depósito, mismo `r` en las 3):**
+
+| `r` | Tickets por partida | Tickets por depósito | Depósitos para un Funko (3000) | Pago al jugador (% del depósito) |
+|---|---|---|---|---|
+| 1,0 | 100 | 300 | 10,0 | 80,0 % |
+| 0,9 | 81 | 243 | 12,3 | 64,8 % |
+| 0,8 | 64 | 192 | 15,6 | 51,2 % |
+| 0,7 | 49 | 147 | 20,4 | 39,2 % |
+| 0,6 | 36 | 108 | 27,8 | 28,8 % |
+| 0,5 | 25 | 75 | 40,0 | 20,0 % |
+| 0,4 | 16 | 48 | 62,5 | 12,8 % |
+| 0,3 | 9 | 27 | 111,1 | 7,2 % |
+| 0,2 | 4 | 12 | 250,0 | 3,2 % |
+| 0,1 | 1 | 3 | 1000,0 | 0,8 % |
+
+**Pago esperado de la máquina.** Con una mezcla supuesta de jugadores:
+
+| Tipo de jugador | Proporción | `r` típico |
+|---|---|---|
+| Nuevo / casual | 30 % | 0,30 |
+| Casual con práctica | 30 % | 0,50 |
+| Regular | 25 % | 0,70 |
+| Bueno | 10 % | 0,85 |
+| Experto | 5 % | 0,95 |
+
+- Tickets promedio por depósito: **≈ 102,5**.
+- Pago promedio: `102,45 × 0,00267 ≈ 0,273` unidades, o sea **≈ 27 %** del depósito. Queda dentro del objetivo de 20–30 % (`targetPayoutPct`).
+- Margen bruto de la máquina: **≈ 73 %** (antes de otros costos).
+- Un jugador promedio de esa mezcla tarda ≈ 29 depósitos en juntar un Funko, ≈ 5 en un llavero (500) y ≈ 15 en el peluche (1500).
+
+**Qué se ajusta y para qué:**
+
+| Palanca | Efecto |
+|---|---|
+| `maxPerPlay` | Escala todos los tickets a la vez. Si el pago esperado se pasa del objetivo, bajarlo |
+| `curveExponent` | Más alto = solo los buenos ganan; más bajo = todos ganan algo |
+| `playsPerDeposit` | Más jugadas = más tickets por depósito |
+| `prizeUnitCost` / `prizeUnitTickets` | Cambian el valor del ticket sin tocar el juego |
+| `depositPrice` | Relación entre lo que entra y lo que sale |
+
+> **Supuestos.** La mezcla de jugadores, el costo del Funko (8 unidades) y el objetivo de 20–30 % son **supuestos míos**, no datos. Hay que reemplazarlos tras observar partidas reales. Los valores de `r` por tipo de jugador son los más inciertos: ScoreV1 castiga mucho los combos rotos, así que un jugador de 85 % de precisión suele tener un `r` bastante menor que 0,85.
+
+**Regla de seguridad.** Si el tamaño real de un mapa distorsiona `Max` (por ejemplo, con 2 objetos), se exige un mínimo de objetos para pagar tickets (`minObjectsForTickets`, propuesta: 50).
 
 - **Jugadas**: `playsPerDeposit` define cuántas partidas da un depósito. Cada partida (incluido un cambio de mapa o reintento) consume una.
 - **Tickets**: se calculan al terminar la partida y se acreditan al **saldo de la tarjeta registrada** (UID). Sin tarjeta, la partida da puntaje pero no tickets.
@@ -224,15 +294,54 @@ Objetivo: replicar **ScoreV1** (el sistema clásico de osu!standard), no el Scor
 | 50 | 50 |
 | MISS | 0 |
 
-**Puntaje por golpe (ScoreV1):**
-`puntos = valor + valor × (combo_previo × multiplicador_dificultad) / 25`
+**Puntaje por golpe (ScoreV1, fórmula oficial):**
 
-- `combo_previo` es el combo antes de este golpe.
-- `multiplicador_dificultad` depende de HP, CS y OD del mapa (tabla de la wiki de osu!). Sin mods.
-- Los **valores exactos de esa tabla** se toman de la wiki de osu! al implementar. Antes de programarlo, hay que confirmarlos ahí, porque no quiero inventarlos.
+```
+puntos = V + V × ( C × D × M ) / 25
+```
+
+| Símbolo | Significado |
+|---|---|
+| `V` | Valor base del juicio (300 / 100 / 50; MISS = 0) |
+| `C` | `max(combo_antes_del_golpe − 1, 0)`: el primer golpe de una racha no tiene bonus |
+| `D` | Multiplicador de dificultad del mapa (ver abajo) |
+| `M` | Multiplicador de mods: **1** (no hay mods en POIPIU) |
+
+**Multiplicador de dificultad `D`** (usa siempre los valores originales de HP, CS y OD del mapa):
+
+```
+D = round( ( HP + CS + OD + clamp( n_objetos / t_drenaje_seg × 8, 0, 16 ) ) / 38 × 5 )
+```
+
+- `n_objetos`: cantidad total de objetos del mapa.
+- `t_drenaje_seg`: segundos entre el primer y el último objeto, sin contar los descansos (*breaks*).
+- `D` es un entero. Se calcula **una vez por mapa** al indexar el `.osz`.
+
+> **Estado de verificación.** No pude abrir la wiki de osu! desde este entorno (el proxy la bloquea). La estructura `V + V·(C·D·M)/25`, el `C = combo − 1` con piso en 0 y la forma de `D` (÷38, ×5, redondeo, densidad acotada a 0–16) coinciden con el resumen de la wiki que devolvió la búsqueda y con mi conocimiento previo, pero **no comparé contra la página**. Antes de dar por cerrado el módulo, validar con un resultado real conocido: tomar un mapa y un replay/puntaje publicado y comprobar que el cálculo da el mismo número.
+
+**Sliders y spinners:** en v1 cada slider se juzga como un círculo (un solo juicio). Los bonus de ticks, extremos y spinners de ScoreV1 se agregan en v2.
+
+**Puntaje máximo de un mapa (para el negocio, §4):**
+solo círculos, todo en 300, sin romper combo:
+
+```
+Max = 300·n + 6 · D · (n − 1) · (n − 2)
+```
+
+Ejemplo: `n = 1000`, `D = 5` → `300 000 + 6·5·999·998 = 30 210 060`. Un mapa de 1000 objetos tiene un máximo de ~30 millones, no de ~1 millón. Por eso los tickets no pueden calcularse con el puntaje crudo.
 
 **Precisión (como en osu!):**
-`ACC = (300·300 + 100·100 + 50·50) / (300 · total_objetos)`, expresada como porcentaje. Equivale a `(n300·3 + n100·1 + n50·0,5) / (3 · total)`.
+`ACC = (300·n300 + 100·n100 + 50·n50) / (300 · total_objetos)`, en porcentaje. Equivale a `(n300·3 + n100·1 + n50·0,5) / (3 · total)`.
+
+**Vectores de prueba** (para los tests de `ScoreCalculator`, con `D = 5`):
+
+| Caso | Resultado esperado |
+|---|---|
+| 1 solo objeto, 300 | 300 |
+| 2 objetos, ambos 300 | 600 (el segundo tiene `C = 0`) |
+| 3 objetos, todos 300 | `300 + 300 + 300 + 300·(1·5)/25 = 960` |
+| 1000 objetos, todos 300 | 30 210 060 |
+| 1000 objetos, todos MISS | 0 |
 
 **Juicios (ventanas en ms, con OD del mapa):**
 
@@ -409,9 +518,9 @@ Criterio de aceptación: un `.osz` real se carga, suena el preview, el mapa se j
 ## 13. Decisiones abiertas
 
 1. **Tarjeta y moneda**: ¿pasar la tarjeta da un depósito (3 jugadas) como la moneda, o la tarjeta solo sirve para acumular tickets? La propuesta actual es que da un depósito. Si pagó con moneda y no pasó tarjeta, los tickets se pierden.
-2. **Tabla de dificultad de ScoreV1**: confirmar los multiplicadores exactos en la wiki de osu! antes de implementar §5.
+2. **Validación de ScoreV1**: comparar el cálculo de §5 contra un puntaje real publicado de un mapa conocido (la wiki no era accesible desde este entorno).
 3. **Premios**: los nombres y costos de §4 son ejemplos. Falta el catálogo real si quieren mostrarlo.
-4. **Nombre "POiSU"**: suena casi igual a "osu!", y eso puede traer el mismo problema de marca que el nombre anterior. Conviene decidirlo antes de hacer logo y video promo.
+4. **Economía**: confirmar el costo del premio (8 unidades), el objetivo de pago (20–30 %) y la mezcla de jugadores de §4.1, o reemplazarlos por tus datos.
 
 ---
 
