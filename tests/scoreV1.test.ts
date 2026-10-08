@@ -58,3 +58,24 @@ describe("accuracy", () => {
     expect(Math.floor(acc * 100) / 100).toBe(97.93);
   });
 });
+
+import { parseBeatmap } from "../src/beatmap/parser.js";
+import { maxScoreV1, ticketsFor } from "../src/scoring/maxScore.js";
+
+describe("maxScoreV1 and tickets", () => {
+  // 5 circles over 4 s: density clamps to 16, D = round((5+4+8+16)/38*5) = 4.
+  const circles = ["100,100,1000", "200,100,2000", "300,100,3000", "400,100,4000", "300,200,5000"]
+    .map((c) => `${c},1,0,0:0:0:0:`)
+    .join("\n");
+  const map = parseBeatmap(
+    `osu file format v14\n[General]\nMode: 0\n[Difficulty]\nHPDrainRate:5\nCircleSize:4\nOverallDifficulty:8\nApproachRate:9\nSliderMultiplier:1.8\nSliderTickRate:1\n[TimingPoints]\n0,500,4,2,1,50,1,0\n[HitObjects]\n${circles}\n`,
+  );
+  it("equals the circles-only closed form", () => {
+    expect(maxScoreV1(map)).toBe(300 * 5 + 6 * 4 * 4 * 3);
+  });
+  it("gives 100 tickets for a perfect play and scales with the square", () => {
+    expect(ticketsFor(1000, 1000)).toBe(100);
+    expect(ticketsFor(500, 1000)).toBe(25);
+    expect(ticketsFor(2000, 1000)).toBe(100);
+  });
+});

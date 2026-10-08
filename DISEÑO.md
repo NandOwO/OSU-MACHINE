@@ -403,6 +403,26 @@ Lo que quedó confirmado con esto:
 
 **Lo que no está resuelto:** los 1 234 puntos de diferencia. La hipótesis más probable son los puntos por giro del spinner (el cursor dio ≈ 5,8 vueltas en sus 1,08 s), que el simulador todavía no modela. No lo cerré porque no tengo verificada la regla exacta de puntos por giro y bonus de ScoreV1, y no quise ajustarla a ojo hasta que el número cuadre. Hasta entonces, la prueba automática exige coincidencia exacta de juicios y combo, y una diferencia de puntaje menor al 0,1 %.
 
+**Casos #3 y #4 (replays de *Kimi no Sei* y *SHIORI vs. Hitorigoto*).** Se validaron contra sus mapas (hashes coincidentes: *NiNo's Insane* y *Insane*). El simulador, con apilamiento de círculos (*stacking*) incluido, da:
+
+| Replay | 300 / 100 / 50 / Miss real | Simulador | Puntaje real | Simulador |
+|---|---|---|---|---|
+| Deneb to Spica (partida cortada) | 236 / 39 / 1 / 7 | 236 / 39 / 1 / 7 | 1 587 776 | 1 586 542 (−0,078 %) |
+| SHIORI vs. Hitorigoto (completa) | 286 / 14 / 1 / 1 | 288 / 12 / 1 / 1 | 2 645 078 | 2 661 018 (+0,60 %) |
+| Kimi no Sei (partida cortada) | 252 / 37 / 1 / 12 | 255 / 35 / 1 / 9 | 2 498 892 | 2 537 874 (+1,56 %) |
+
+Lectura honesta: el simulador es **exacto en juicios solo con Deneb**; en las otras dos hay 2 a 3 objetos que el juego real califica peor que yo (un 300 que en el juego fue 100, o un fallo que yo cuento como golpe). Probé desfases de ±6 ms y el apilamiento sin que cambie de forma consistente, así que el origen no es un desfase constante. Las causas candidatas son detalles de la detección de golpes en *stable* (bloqueo de notas, golpes tempranos, cabezas de slider) que todavía no reproduzco. Para el video y para estimar tickets la diferencia es irrelevante, pero **no debe presentarse el simulador como idéntico a osu!**.
+
+**Tickets con la fórmula real (§4.1).** `src/scoring/maxScore.ts` calcula el puntaje máximo de cada mapa (partida perfecta con sliders) y `ticketsFor` aplica `round(100 × r²)`:
+
+| Mapa | Puntaje máximo | Puntaje de la replay | `r` | Tickets |
+|---|---|---|---|---|
+| Deneb to Spica [Erisu's Insane] | 4 659 546 | 1 587 776 (cortada) | 0,34 | 12 |
+| Kimi no Sei [NiNo's Insane] | 3 969 308 | 2 498 892 (cortada) | 0,63 | 40 |
+| SHIORI vs. Hitorigoto [Insane] | 3 737 260 | 2 645 078 | 0,71 | 50 |
+
+Los puntajes máximos asumen que un spinner vale un solo 300 (los puntos por giro no están modelados).
+
 Consecuencia para §4: el máximo de §5 (`300·n + 6·D·(n−1)·(n−2)`) vale solo para mapas de círculos. Con sliders y spinner, el `Max` del mapa se obtiene **simulando una partida perfecta**.
 
 Lo que **no** se puede verificar con el caso #1 (la captura):

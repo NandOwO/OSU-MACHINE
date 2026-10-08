@@ -57,8 +57,18 @@ for spec in sys.argv[2:]:
             return True
         return False
 
-    for base in ("hitcircle", "hitcircleoverlay", "approachcircle", "sliderb0", "sliderfollowcircle", "cursor", "cursortrail", "sliderendcircle", "reversearrow"):
+    for base in ("hitcircle", "hitcircleoverlay", "approachcircle", "sliderfollowcircle", "cursor", "cursortrail",
+                 "sliderendcircle", "sliderendcircleoverlay", "sliderstartcircle", "sliderstartcircleoverlay",
+                 "sliderscorepoint", "reversearrow"):
         grab(base, [f"{base}@2x.png", f"{base}.png"])
+    grab("sliderb", ["sliderb0@2x.png", "sliderb0.png", "sliderb@2x.png", "sliderb.png"])
+    # Follow points: first animation frame that is actually visible (skins often hide the rest with 1x1 images).
+    if not grab("followpoint", ["followpoint@2x.png", "followpoint.png"]) or files["followpoint"]["hidden"]:
+        files.pop("followpoint", None)
+        for n in range(0, 80):
+            if grab("followpoint", [f"followpoint-{n}@2x.png", f"followpoint-{n}.png"]) and not files["followpoint"]["hidden"]:
+                break
+            files.pop("followpoint", None)
     for j in ("300", "100", "50", "0"):
         grab("hit" + j, [f"hit{j}-0@2x.png", f"hit{j}-0.png", f"hit{j}@2x.png", f"hit{j}.png"])
     for dgt in range(10):

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseBeatmap } from "../src/beatmap/parser.js";
+import { applyStacking } from "../src/beatmap/stacking.js";
 import { parseReplay } from "../src/replay/osr.js";
 import { simulate } from "../src/sim/replaySim.js";
 
@@ -33,3 +34,23 @@ describe.skipIf(!have)("replay validation: Deneb to Spica [Erisu's Insane]", () 
     expect(Math.abs(sim.score - replay.score) / replay.score).toBeLessThan(0.001);
   });
 });
+
+// The two newer replays: the simulator is close but not exact (see DISEÑO.md §5, casos #3 y #4).
+for (const [name, osu, osr, tol] of [
+  ["SHIORI vs. Hitorigoto [Insane]", "fixtures/private/shiori.osu", "fixtures/private/shiori.osr", 0.01],
+  ["Kimi no Sei [NiNo's Insane]", "fixtures/private/kimi.osu", "fixtures/private/kimi.osr", 0.02],
+] as const) {
+  describe.skipIf(!(existsSync(osu) && existsSync(osr)))(`replay approximation: ${name}`, () => {
+    const map = applyStacking(parseBeatmap(readFileSync(osu, "utf8")));
+    const replay = parseReplay(new Uint8Array(readFileSync(osr)));
+    const sim = simulate(map, replay);
+    it("judgement counts stay within 3 objects per class", () => {
+      expect(Math.abs(sim.n300 - replay.n300)).toBeLessThanOrEqual(3);
+      expect(Math.abs(sim.n100 - replay.n100)).toBeLessThanOrEqual(3);
+      expect(Math.abs(sim.miss - replay.miss)).toBeLessThanOrEqual(3);
+    });
+    it(`score within ${tol * 100}%`, () => {
+      expect(Math.abs(sim.score - replay.score) / replay.score).toBeLessThan(tol);
+    });
+  });
+}
