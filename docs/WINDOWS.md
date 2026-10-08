@@ -54,3 +54,16 @@ Ninguno de los dos está firmado: Windows SmartScreen mostrará una advertencia 
 - Conectar el lector de tarjetas y el aceptador de monedas: hoy son simulados con el teclado. La interfaz está en `src/app/hardware.ts`.
 - Probar la latencia de audio y de entrada en el equipo final (hay un desfase de audio configurable pendiente en el panel de operador).
 - Firmar el programa si se va a distribuir.
+
+## Maps and skins of the factory
+
+The repository does not contain maps or skins (they belong to their authors). To ship a cabinet with some preinstalled,
+put the `.osz` / `.osk` files in a `bundled` folder before building (`npm run package:win`), or, on an already built copy,
+in `resources\bundled\` next to `POIPIU.exe` (portable zip) or in the install folder (installer) **before the first start**.
+They are copied once to `%APPDATA%\POIPIU\content`; anything the operator removes does not come back.
+Any player can also import their own with the IMPORTAR button.
+
+## Getting the build without a Windows machine
+
+The workflow `.github/workflows/windows.yml` builds the installer and the portable zip on GitHub (Actions tab, run
+"Windows build", download the `POIPIU-windows` artifact).

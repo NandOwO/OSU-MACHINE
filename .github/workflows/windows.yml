@@ -1,0 +1,25 @@
+name: Windows build
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/magical-davinci-vkds44]
+    paths: ["src/**", "electron/**", "package.json", "build/**", ".github/workflows/windows.yml"]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm test
+      # Factory maps/skins are not in the repo (third-party content): the folder ships empty.
+      - run: New-Item -ItemType Directory -Force bundled | Out-Null
+      - run: npm run package:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: POIPIU-windows
+          path: |
+            release/POIPIU-Setup-*.exe
+            release/POIPIU-*-win-x64.zip
+          if-no-files-found: error
