@@ -17,6 +17,10 @@ export interface PlaySceneOptions {
   /** Extra time before the first object (ms of silence at the start). */
   leadInMs?: number;
   engine?: Partial<EngineOptions>;
+  /** Draw score, combo and bars (default true). Attract mode turns it off. */
+  hud?: boolean;
+  /** Seconds-based countdown shown while the song time is negative (default true). */
+  countdown?: boolean;
   onFinish?: (r: PlayResult) => void;
   onEvents?: (events: EngineEvent[]) => void;
 }
@@ -111,7 +115,8 @@ export class PlayScene {
     if (drawBackground) drawBackground(g);
     this.renderer.draw(g, now, this.cursor);
     g.restore();
-    this.drawHud(g, now);
+    if (this.options.hud !== false) this.drawHud(g, now);
+    if (this.options.countdown !== false && now < 0 && !this.options.auto) this.drawCountdown(g, now);
 
     if (!this.finished && now > this.lastEnd + 1500 && this.engine.finished) {
       this.finished = true;
@@ -126,6 +131,19 @@ export class PlayScene {
   }
 
   // ------------------------------------------------------------------ HUD
+
+  private drawCountdown(g: CanvasRenderingContext2D, now: number): void {
+    const n = Math.ceil(-now / 1000);
+    if (n < 1 || n > 3) return;
+    const p = 1 - ((-now / 1000) - (n - 1)); // 0 -> 1 within each second
+    g.save();
+    g.translate(LOGICAL_W / 2, FIELD.y + 384);
+    g.scale(1.5 - 0.5 * p, 1.5 - 0.5 * p);
+    g.globalAlpha = 1 - Math.max(0, (p - 0.7) / 0.3);
+    g.font = "220px 'Press Start 2P', monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillStyle = "#ffd23f"; g.shadowColor = "#ffd23f"; g.shadowBlur = 60; g.fillText(String(n), 0, 0);
+    g.restore();
+  }
 
   private drawHud(g: CanvasRenderingContext2D, now: number): void {
     const e = this.engine;
