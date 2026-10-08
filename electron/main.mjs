@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, session } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ContentFolder, FileStore } from "./store.mjs";
@@ -10,6 +10,7 @@ const DEV = args.has("--dev");
 const WINDOWED = DEV || args.has("--windowed");
 const urlArg = process.argv.find((a) => a.startsWith("--url="))?.slice(6);
 // --source=tosu: osu! plays the maps (option B). Without it the built-in engine plays.
+const verifyArg = process.argv.find((a) => a.startsWith("--verify="))?.slice(9); // strict (default) | log | off
 const sourceArg = process.argv.find((a) => a.startsWith("--source="))?.slice(9);
 
 // A fixed name gives a predictable data folder (%APPDATA%\POIPIU on Windows).
@@ -54,7 +55,7 @@ function createWindow() {
   // If the page dies, bring it back.
   wc.on("render-process-gone", () => setTimeout(() => wc.reload(), 1000));
   win.on("unresponsive", () => setTimeout(() => wc.reload(), 5000));
-  if (urlArg) win.loadURL(urlArg); else win.loadFile(join(here, "..", "dist", "index.html"), sourceArg ? { query: { source: sourceArg } } : undefined);
+  if (urlArg) win.loadURL(urlArg); else win.loadFile(join(here, "..", "dist", "index.html"), sourceArg ? { query: { source: sourceArg, ...(verifyArg ? { verify: verifyArg } : {}) } } : undefined);
   if (DEV) wc.openDevTools({ mode: "detach" });
 }
 
@@ -85,4 +86,16 @@ function registerIpc() {
 
 app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 app.on("window-all-closed", () => app.quit());
-app.whenReady().then(() => { registerIpc(); createWindow(); });
+app.whenReady().then(() => {
+  // tosu refuses WebSocket clients whose Origin is `file://` (the page is loaded from disk). Present the page
+  // as coming from the local machine instead, only for connections to this computer.
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ["ws://*/*", "wss://*/*"] }, (details, cb) => {
+    const h = { ...details.requestHeaders };
+    try {
+      const u = new URL(details.url);
+      if (u.hostname === "127.0.0.1" || u.hostname === "localhost") h.Origin = `http://${u.host}`;
+    } catch { /* leave the request as it is */ }
+    cb({ requestHeaders: h });
+  });
+  registerIpc(); createWindow();
+});

@@ -197,3 +197,19 @@ describe("tosu over a real WebSocket (mock server)", () => {
     feed.dispose(); await srv.close();
   });
 });
+
+describe("origin check (as tosu 4.x does)", () => {
+  const handshake = (port: number, origin?: string) => new Promise<string>((res) => {
+    import("node:net").then(({ connect }) => {
+      const c = connect(port, "127.0.0.1", () => c.write(`GET /websocket/v2 HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n${origin ? `Origin: ${origin}\r\n` : ""}\r\n`));
+      c.once("data", (d) => { res(String(d).split("\r\n")[0]!); c.destroy(); });
+    });
+  });
+  it("refuses file:// pages and accepts a local origin or no origin", async () => {
+    const srv = new MockTosuServer(); await srv.listen();
+    expect(await handshake(srv.port, "file://")).toMatch(/403/);
+    expect(await handshake(srv.port, `http://127.0.0.1:${srv.port}`)).toMatch(/101/);
+    expect(await handshake(srv.port)).toMatch(/101/);
+    await srv.close();
+  });
+});

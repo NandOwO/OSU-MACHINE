@@ -15,9 +15,18 @@ export class MockTosuServer {
   private server: Server;
   private clients = new Set<Socket>();
   port = 0;
-  constructor() {
+  /** Origins seen in handshakes (tests check what the page presents). */
+  readonly origins: string[] = [];
+  /** `strictOrigin` mimics tosu 4.x: a browser page whose Origin is not local gets refused (403). */
+  constructor(private readonly strictOrigin = true) {
     this.server = createServer((_q, r) => { r.writeHead(426).end(); });
     this.server.on("upgrade", (req, socket: Socket) => {
+      const origin = req.headers.origin;
+      if (origin !== undefined) this.origins.push(String(origin));
+      if (this.strictOrigin && origin !== undefined && !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(String(origin))) {
+        socket.end("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+        return;
+      }
       const key = String(req.headers["sec-websocket-key"] ?? "");
       const accept = createHash("sha1").update(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest("base64");
       socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);

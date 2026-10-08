@@ -8,7 +8,7 @@ import { safeName } from "./store.mjs";
 /** `osu.json` in the data folder; absent = option B is off. */
 export function readOsuConfig(file) {
   try {
-    const c = JSON.parse(readFileSync(file, "utf8"));
+    const c = JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/, "")); // PowerShell 5 writes a BOM
     if (!c.osuDir) return null;
     return { osuDir: c.osuDir, osuExe: c.osuExe ?? "osu!.exe", osuArgs: c.osuArgs ?? [], tosuExe: c.tosuExe ?? null, tosuArgs: c.tosuArgs ?? [], launch: c.launch !== false };
   } catch { return null; }

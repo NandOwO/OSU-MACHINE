@@ -29,7 +29,7 @@ export function installOsuMode(app: KioskApp, source: "tosu" | "mock"): void {
     findReplay: host ? () => host.osuFindReplay(playStart - 2000) : undefined,
     resolve: (s) => { const e = resolveEntry(app, s); return e ? { mapKey: e.mapKey, map: e.entry.beatmap, maxScore: e.maxScore } : null; },
     // Verification needs the .osr; in the simulation there is none, so it only logs.
-    verify: source === "tosu" ? "strict" : "log",
+    verify: source === "tosu" ? (({ strict: "strict", log: "log", off: "off" } as const)[new URLSearchParams(location.search).get("verify") ?? ""] ?? "strict") : "log",
     onEvent: (ev: BridgeEvent) => {
       if (ev.type === "start") playStart = Date.now();
       if (ev.type === "violation") void host?.osuStop();

@@ -156,3 +156,6 @@ Mitigacion: el vigilante solo paga tickets si se cumplen las reglas del punto 4,
 Notas: osu! se reinicia en cada sesion (tarda unos segundos, el shell muestra "PREPARANDO OSU!..."). El vigilante lo relanza si se cae durante la sesion y lo cierra al terminar o si se juega sin jugadas.
 
 6. **Diagnostico**: con `--source=tosu`, `Ctrl+Shift+D` abre un panel que muestra si tosu esta conectado, el ultimo mensaje crudo de tosu y como lo lee POIPIU. Si algo sale en 0 o vacio, copia ese texto: sirve para corregir `normalizeTosu`.
+
+7. **tosu rechaza el origen `file://`**: tosu 4.x registra `Blocked external WebSocket request` si la pagina se carga desde disco. El kiosco presenta ante tosu un origen local (`http://127.0.0.1:24050`) solo para conexiones a este equipo (`electron/main.mjs`, `onBeforeSendHeaders`). Probado con `tools/e2e-electron-tosu.mjs` contra un servidor que imita esa regla.
+8. `--verify=strict|log|off` en la linea de comandos (por defecto `strict`) y `osu.json` tolera el caracter invisible (BOM) que PowerShell 5 puede anadir.

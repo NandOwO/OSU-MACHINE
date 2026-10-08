@@ -48,6 +48,8 @@ describe("osu! folder helpers", () => {
     expect(readOsuConfig(join(d, "osu.json"))).toBeNull();
     writeFileSync(join(d, "osu.json"), JSON.stringify({ osuDir: "C:\\osu!", tosuExe: "C:\\tosu\\tosu.exe" }));
     expect(readOsuConfig(join(d, "osu.json"))).toMatchObject({ osuDir: "C:\\osu!", osuExe: "osu!.exe", launch: true });
+    writeFileSync(join(d, "osu.json"), "\uFEFF" + JSON.stringify({ osuDir: "D:\\o" }));
+    expect(readOsuConfig(join(d, "osu.json"))?.osuDir).toBe("D:\\o");
     writeFileSync(join(d, "osu.json"), "{}");
     expect(readOsuConfig(join(d, "osu.json"))).toBeNull();
   });
