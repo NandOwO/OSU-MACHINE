@@ -5,14 +5,19 @@
   "type": "module",
   "description": "POIPIU - arcade osu!standard replica",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "node tools/e2e-smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
     "playwright-core": "^1.49.1",
     "tsx": "^4.19.2",
     "typescript": "5.6.3",
+    "vite": "^5.4.11",
     "vitest": "2.1.8"
   },
   "dependencies": {

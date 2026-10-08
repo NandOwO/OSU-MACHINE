@@ -90,8 +90,10 @@ export function parseBeatmap(text: string): Beatmap {
   timingPoints.sort((a, b) => a.time - b.time);
 
   const breaks: BreakPeriod[] = [];
+  let backgroundFile: string | undefined;
   for (const l of raw.Events ?? []) {
     const p = l.split(",");
+    if ((p[0] === "0" || p[0] === "Background") && p[2]) backgroundFile ??= p[2].replace(/^"|"$/g, "");
     if (p[0] === "2" || p[0] === "Break") breaks.push({ start: num(p[1], 0), end: num(p[2], 0) });
   }
 
@@ -101,6 +103,7 @@ export function parseBeatmap(text: string): Beatmap {
     formatVersion,
     mode,
     audioFilename: general.AudioFilename ?? "",
+    backgroundFile,
     previewTime: num(general.PreviewTime, -1),
     stackLeniency: num(general.StackLeniency, 0.7),
     metadata,

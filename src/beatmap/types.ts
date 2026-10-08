@@ -71,6 +71,8 @@ export interface Beatmap {
   formatVersion: number;
   mode: number;
   audioFilename: string;
+  /** Background image file name from [Events], if any. */
+  backgroundFile?: string;
   previewTime: number;
   stackLeniency: number;
   metadata: Metadata;
