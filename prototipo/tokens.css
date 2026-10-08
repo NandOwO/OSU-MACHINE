@@ -1,0 +1,39 @@
+/* POIPIU design tokens. Single source for the prototype and the final UI. */
+:root {
+  /* Surfaces */
+  --bg-0: #07061a;
+  --bg-1: #12102e;
+  --bg-2: #1e1a45;
+
+  /* Neon accents */
+  --neon-pink: #ff2e88;
+  --neon-cyan: #00e5ff;
+  --neon-yellow: #ffd23f; /* credits, tickets, "puntos" */
+  --neon-lime: #7cff4f;
+
+  /* Judgements */
+  --judge-300: var(--neon-lime);
+  --judge-100: #4fc3f7;
+  --judge-50: #ffb74d;
+  --judge-miss: #ff3b3b;
+
+  /* Text */
+  --text: #f5f5ff;
+  --text-dim: #8c88b8;
+
+  /* Glow */
+  --glow-pink: 0 0 12px rgb(255 46 136 / 0.7), 0 0 32px rgb(255 46 136 / 0.35);
+  --glow-cyan: 0 0 12px rgb(0 229 255 / 0.7), 0 0 32px rgb(0 229 255 / 0.35);
+  --glow-yellow: 0 0 12px rgb(255 210 63 / 0.7), 0 0 32px rgb(255 210 63 / 0.35);
+
+  /* Typography (Google Fonts: Press Start 2P, Rajdhani) */
+  --font-arcade: "Press Start 2P", ui-monospace, monospace;
+  --font-ui: "Rajdhani", "Inter", system-ui, sans-serif;
+
+  /* Motion */
+  --t-fast: 150ms;
+  --t-base: 300ms;
+  --t-slow: 600ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}

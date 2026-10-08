@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="POIPIU">
+  <title>POIPIU</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF2E88"/>
+      <stop offset="1" stop-color="#00E5FF"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="#07061A"/>
+  <g fill="none" filter="url(#glow)">
+    <circle cx="64" cy="64" r="50" stroke="#FF2E88" stroke-width="3" stroke-dasharray="2 8" stroke-linecap="round" opacity="0.6"/>
+    <circle cx="64" cy="64" r="34" stroke="url(#g)" stroke-width="14"/>
+    <circle cx="64" cy="64" r="9" fill="#FFD23F"/>
+  </g>
+</svg>
