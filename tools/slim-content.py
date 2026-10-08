@@ -32,6 +32,13 @@ for fn in sorted(os.listdir(src)):
             if n.lower().endswith(".osu"):
                 m = re.search(r"^AudioFilename:\s*(.+?)\s*$", zin.read(n).decode("utf-8", "ignore"), re.M)
                 if m: audios.add(m.group(1).lower())
+    prefixes = set()
+    if not is_map:
+        ini = next((n for n in names if n.lower() == "skin.ini"), None)
+        if ini:
+            for m in re.finditer(r"^\s*(HitCircle|Score|Combo)Prefix\s*:\s*(.+?)\s*$", zin.read(ini).decode("utf-8", "ignore"), re.M | re.I):
+                prefixes.add(m.group(2).replace("\\", "/").lower())
+    digit = re.compile(r"^(.+)-\d(@2x)?\.png$", re.I)
     out = os.path.join(dst, fn)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for n in names:
@@ -43,7 +50,8 @@ for fn in sorted(os.listdir(src)):
                 elif base in bgs: data = jpg(zin.read(n))
                 elif re.search(r"^[^/]+\.wav$", base) and zin.getinfo(n).file_size < 150_000: data = zin.read(n)
             else:
-                if "/" not in n and SKIN_KEEP.match(n):
+                dm = digit.match(n)
+                if (dm and dm.group(1).lower() in prefixes) or ("/" not in n and SKIN_KEEP.match(n)):
                     data = zin.read(n)
                     if n.lower().endswith(".wav") and len(data) > 150_000: data = None
             if data is not None: z.writestr(n, data)

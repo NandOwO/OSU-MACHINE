@@ -46,6 +46,10 @@ export class KioskApp {
   private ambientEnds = 0;
   private stopSong: (() => void) | null = null;
   private bg: { url: string; img: HTMLImageElement } | null = null;
+  /** Previous cover and when the swap started, to crossfade backgrounds. */
+  private bgPrev: HTMLImageElement | null = null;
+  private bgSwap = 0;
+  private nowMs(): number { return this.manual ? this.manualClock.time : performance.now(); }
   private raf = 0;
   private audioCache = new Map<string, AudioBuffer>();
   private stopPreview: (() => void) | null = null;
@@ -169,9 +173,10 @@ export class KioskApp {
   }
 
   setCover(url: string | null): void {
-    if (!url) { this.bg = null; return; }
+    if (!url) { this.bg = null; this.bgPrev = null; return; }
     if (this.bg?.url === url) return;
     const img = new Image(); img.src = url;
+    this.bgPrev = this.bg?.img ?? null; this.bgSwap = this.nowMs();
     this.bg = { url, img };
   }
   private drawBg(c: CanvasRenderingContext2D, dim: number): void {
@@ -179,10 +184,14 @@ export class KioskApp {
     const grad = c.createLinearGradient(0, 0, 0, LOGICAL_H); grad.addColorStop(0, "#07061a"); grad.addColorStop(1, "#12102e");
     c.fillStyle = grad; c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     const img = this.bg?.img;
-    if (img?.complete && img.naturalWidth) {
-      const r = Math.max(LOGICAL_W / img.naturalWidth, LOGICAL_H / img.naturalHeight);
-      c.save(); c.filter = "blur(10px)"; c.drawImage(img, (LOGICAL_W - img.naturalWidth * r) / 2, (LOGICAL_H - img.naturalHeight * r) / 2, img.naturalWidth * r, img.naturalHeight * r); c.restore();
-    }
+    const fade = Math.min(1, (this.nowMs() - this.bgSwap) / 450);
+    const cover = (im: HTMLImageElement, alpha: number, zoom: number) => {
+      if (!im.complete || !im.naturalWidth) return;
+      const r = Math.max(LOGICAL_W / im.naturalWidth, LOGICAL_H / im.naturalHeight) * zoom, w = im.naturalWidth * r, h = im.naturalHeight * r;
+      c.save(); c.filter = "blur(10px)"; c.globalAlpha = alpha; c.drawImage(im, (LOGICAL_W - w) / 2, (LOGICAL_H - h) / 2, w, h); c.restore();
+    };
+    if (this.bgPrev && fade < 1) cover(this.bgPrev, 1, 1); else this.bgPrev = null;
+    if (img) cover(img, fade, 1 + 0.06 * (1 - fade));
     c.fillStyle = `rgba(7,6,26,${dim})`; c.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
     // retro grid floor
     c.save(); c.strokeStyle = "rgba(255,46,136,0.2)"; c.lineWidth = 2;

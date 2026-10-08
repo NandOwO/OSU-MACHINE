@@ -100,3 +100,20 @@ button.primary { border-color: var(--neon-pink); background: rgb(255 46 136 / 0.
 .importer .dropzone { border: 3px dashed var(--text-dim); border-radius: 1vw; padding: 2.4vh 2vw; text-align: center; font: 0.9vw/1.8 var(--font-arcade); color: var(--text-dim); }
 .importer .row { display: flex; gap: 1vw; align-items: center; justify-content: space-between; padding: 0.6vh 0; border-bottom: 1px solid rgb(255 255 255 / 0.1); }
 .bottombar .primary { border-color: var(--neon-pink); background: rgb(255 46 136 / 0.25); }
+
+/* map select: motion when the selection changes */
+.group { transition: transform 0.25s var(--ease-bounce), border-color 0.2s, box-shadow 0.2s; }
+.group:hover { transform: translateX(0.5vw); }
+.group.sel { transform: translateX(1vw); animation: selflash 0.5s ease-out; }
+.group.sel .thumb { animation: thumbpop 0.45s var(--ease-bounce); }
+.detail > * { animation: detailin 0.4s cubic-bezier(0.2, 0.9, 0.3, 1) backwards; }
+.detail.from-top > * { --dy: -2.2vh; } .detail.from-bottom > * { --dy: 2.2vh; }
+.detail > :nth-child(2) { animation-delay: 0.04s; } .detail > :nth-child(3) { animation-delay: 0.08s; } .detail > :nth-child(4) { animation-delay: 0.12s; }
+.detail > :nth-child(5) { animation-delay: 0.16s; } .detail > :nth-child(6) { animation-delay: 0.2s; } .detail > :nth-child(7) { animation-delay: 0.24s; }
+.detail .cover { animation: coverin 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) backwards; overflow: hidden; }
+.chip { transition: transform 0.15s, background 0.15s, border-color 0.15s; } .chip:hover { transform: translateY(-0.3vh); } .chip.sel { animation: pulse 0.35s; }
+@keyframes detailin { from { opacity: 0; transform: translateY(var(--dy, 2vh)); } }
+@keyframes coverin { from { opacity: 0.2; transform: scale(1.05); filter: brightness(2.2); } }
+@keyframes selflash { 0% { background: rgb(0 229 255 / 0.45); } }
+@keyframes thumbpop { 0% { transform: scale(0.85); } }
+@media (prefers-reduced-motion: reduce) { .group, .detail > *, .detail .cover, .chip { animation: none !important; transition: none !important; } }

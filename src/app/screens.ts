@@ -104,6 +104,8 @@ function skin(app: KioskApp): HTMLElement {
 
 // ------------------------------------------------------------------ map select
 
+let mapScroll = 0, lastMapIdx = 0;
+
 function map(app: KioskApp): HTMLElement {
   const lib = app.library, m = app.machine, groups = lib.groups();
   const s = el("div", "screen mapsel");
@@ -117,6 +119,8 @@ function map(app: KioskApp): HTMLElement {
   app.setCover(sel.coverUrl);
 
   const list = el("div", "groups");
+  // The screen is rebuilt on every change: keep the scroll position and glide to the selected row.
+  list.addEventListener("scroll", () => { mapScroll = list.scrollTop; });
   for (const g of groups) {
     const e0 = g.entries[0]!, meta = e0.entry.beatmap.metadata;
     const row = el("div", "group" + (g === group ? " sel" : "")); row.dataset.pack = g.pack.name;
@@ -149,6 +153,11 @@ function map(app: KioskApp): HTMLElement {
   actions.append(play, button("IMPORTAR MAPA (.OSZ)", () => app.openImporter(), "", "import-open"), button("OTRA SKIN", () => m.backToSkin(), "", "back-skin"));
   detail.append(actions);
   s.append(list, detail);
+  list.scrollTop = mapScroll;
+  requestAnimationFrame(() => list.querySelector(".group.sel")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  // Direction of the change drives which way the detail panel slides in.
+  const prevIdx = lastMapIdx; lastMapIdx = groups.indexOf(group);
+  detail.classList.add(lastMapIdx < prevIdx ? "from-top" : "from-bottom");
 
   const move = (dg: number, dd: number) => {
     const gi = groups.indexOf(group);
