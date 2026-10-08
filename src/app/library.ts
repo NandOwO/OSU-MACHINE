@@ -72,7 +72,7 @@ export class Library {
       });
     }
     const skin = await loadSkinFromPack(pack);
-    if (skin) this.skins.push({ ...skin, name: skin.name || fileName });
+    if (skin) this.skins.push({ ...skin, name: skin.name || fileName, file: fileName });
     if (persist && this.store) { try { await this.store.put(fileName, bytes); } catch { this.persistFailed = true; } }
     return pack;
   }

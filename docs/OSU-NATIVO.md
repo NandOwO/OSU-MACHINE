@@ -124,7 +124,7 @@ Mitigacion: el vigilante solo paga tickets si se cumplen las reglas del punto 4,
 | B1 | `OsuSnapshot`/`SnapshotFeed` como costura entre osu! y la maquina (`src/osu/types.ts`); el motor propio sigue igual | hecho |
 | B2 | `OsuBridge` (inicio, fin, fallo, abandono, reintento, violacion), adaptador `tosu.ts`, `MockTosuServer` WebSocket, simulador de partidas, modo `?source=mock` en el shell | hecho, con tests y e2e |
 | B3 | Mods (solo NoMod), verificacion con `.osr` usando nuestro simulador (tolerancia 3 %) | hecho; probado con un replay real local |
-| B4 | Vigilante (lanzar/relanzar osu! y tosu, escribir `Skin` en la config), script de Windows, busqueda del `.osr` en `Replays/` | pendiente |
+| B4 | Vigilante (`electron/osuHost.mjs`): lanza y relanza osu! y tosu, instala mapas (`Songs/`) y skins (`Skins/`) de la maquina, escribe `Skin` en la config, busca el `.osr` en `Replays/`, cierra osu! al terminar la sesion o ante una violacion; `-Source tosu` en el instalador del kiosco | hecho; probado con un osu! falso (tests + e2e en Electron) |
 | B5 | Prueba real en Windows con osu!stable + tosu; confirmar nombres de campos en `src/osu/tosu.ts` | pendiente (requiere osu! real) |
 | B6 | Overlay transparente con HUD de tickets (opcional) | no empezado |
 
@@ -141,3 +141,16 @@ Mitigacion: el vigilante solo paga tickets si se cumplen las reglas del punto 4,
 - Con osu! y tosu reales (Windows): abrir con `?source=tosu`; el shell escucha `ws://127.0.0.1:24050/websocket/v2`.
 - Tests: `npm test` (incluye puente, mods, adaptador, servidor WebSocket falso y, si existen los fixtures privados, verificacion de un replay real).
 - e2e del shell con la simulacion: `node tools/e2e-osu-mock.mjs <mapa.osz>` tras `npx vite build`.
+
+## 12. Puesta en marcha en Windows (osu! y tosu reales)
+
+1. Instalar **osu!stable** (osu.ppy.sh) y **tosu** (github.com/KotRikD/tosu/releases). Abrir osu! una vez para que cree su carpeta y su archivo `osu!.<usuario>.cfg`.
+   Recomendado: jugar **sin iniciar sesion** y en pantalla completa; ajustar volumen y desactivar video/storyboard en las opciones de osu!.
+2. Crear `%APPDATA%\POIPIU\osu.json` (hay un ejemplo en `docs/osu.json.example`) con las rutas de osu! y tosu. Sin ese archivo la opcion B esta apagada.
+3. Instalar POIPIU y registrar el kiosco con el origen osu!:
+   `powershell -ExecutionPolicy Bypass -File instalar-kiosco.ps1 -ExePath "C:\POIPIU\POIPIU.exe" -Source tosu`
+   (o abrir `POIPIU.exe --source=tosu` a mano para probar).
+4. Los mapas y skins de POIPIU (carpeta de contenido, mas lo que importen los jugadores) se copian solos a `Songs\` y `Skins\` de osu! cada vez que se elige skin; osu! se reinicia entonces para leerlos.
+5. Cuando algo no cuadre con tosu real, los nombres de campos estan en `src/osu/tosu.ts` (funcion `normalizeTosu`); es lo primero que hay que contrastar.
+
+Notas: osu! se reinicia en cada sesion (tarda unos segundos, el shell muestra "PREPARANDO OSU!..."). El vigilante lo relanza si se cae durante la sesion y lo cierra al terminar o si se juega sin jugadas.

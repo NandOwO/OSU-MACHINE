@@ -14,6 +14,8 @@ export interface SkinImage {
 export type RGB = [number, number, number];
 
 export interface Skin {
+  /** Archive the skin came from (.osk or .osz), when it was installed from one. */
+  file?: string;
   id: string;
   name: string;
   author: string;

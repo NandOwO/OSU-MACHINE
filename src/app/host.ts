@@ -11,6 +11,11 @@ export interface PoipiuHost {
   contentRead(name: string): Promise<Uint8Array | null>;
   contentAdd(name: string, bytes: Uint8Array): Promise<string>;
   contentRemove(name: string): Promise<boolean>;
+  osuEnabled(): Promise<boolean>;
+  osuPrepare(skinFile?: string | null): Promise<{ synced: { maps: string[]; skins: string[] }; skinSet: boolean } | null>;
+  osuStop(): Promise<boolean>;
+  osuFindReplay(sinceMs: number): Promise<Uint8Array | null>;
+  osuStatus(): Promise<{ osu: boolean; tosu: boolean; osuRestarts: number } | null>;
   quit(): void;
 }
 

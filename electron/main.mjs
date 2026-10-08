@@ -2,12 +2,15 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ContentFolder, FileStore } from "./store.mjs";
+import { OsuSupervisor, readOsuConfig } from "./osuHost.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = new Set(process.argv.slice(1));
 const DEV = args.has("--dev");
 const WINDOWED = DEV || args.has("--windowed");
 const urlArg = process.argv.find((a) => a.startsWith("--url="))?.slice(6);
+// --source=tosu: osu! plays the maps (option B). Without it the built-in engine plays.
+const sourceArg = process.argv.find((a) => a.startsWith("--source="))?.slice(9);
 
 // A fixed name gives a predictable data folder (%APPDATA%\POIPIU on Windows).
 app.setName("POIPIU");
@@ -21,7 +24,7 @@ app.commandLine.appendSwitch("disable-pinch");
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win = null;
-let store, content;
+let store, content, osu = null;
 
 function createWindow() {
   win = new BrowserWindow({
@@ -51,7 +54,7 @@ function createWindow() {
   // If the page dies, bring it back.
   wc.on("render-process-gone", () => setTimeout(() => wc.reload(), 1000));
   win.on("unresponsive", () => setTimeout(() => wc.reload(), 5000));
-  if (urlArg) win.loadURL(urlArg); else win.loadFile(join(here, "..", "dist", "index.html"));
+  if (urlArg) win.loadURL(urlArg); else win.loadFile(join(here, "..", "dist", "index.html"), sourceArg ? { query: { source: sourceArg } } : undefined);
   if (DEV) wc.openDevTools({ mode: "detach" });
 }
 
@@ -68,6 +71,15 @@ function registerIpc() {
   ipcMain.handle("content:read", (_e, name) => { const b = content.read(name); return b ? new Uint8Array(b) : null; });
   ipcMain.handle("content:add", (_e, name, bytes) => content.add(name, bytes));
   ipcMain.handle("content:remove", (_e, name) => { content.remove(name); return true; });
+  // Option B: osu! + tosu run next to the shell when `osu.json` exists in the data folder.
+  const osuCfg = readOsuConfig(join(app.getPath("userData"), "osu.json"));
+  if (osuCfg) osu = new OsuSupervisor(osuCfg, join(app.getPath("userData"), "content"));
+  ipcMain.handle("osu:enabled", () => !!osu);
+  ipcMain.handle("osu:prepare", (_e, skinFile) => (osu ? osu.prepare(typeof skinFile === "string" ? skinFile : null) : null));
+  ipcMain.handle("osu:stop", () => { osu?.stopOsu(); return true; });
+  ipcMain.handle("osu:findReplay", async (_e, sinceMs) => { const b = osu ? await osu.findReplay(Number(sinceMs) || 0) : null; return b ? new Uint8Array(b) : null; });
+  ipcMain.handle("osu:status", () => osu?.status() ?? null);
+  app.on("before-quit", () => osu?.stopAll());
   ipcMain.on("app:quit", () => app.quit());
 }
 

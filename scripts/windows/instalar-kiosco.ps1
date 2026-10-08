@@ -12,7 +12,9 @@
 #>
 param(
   [Parameter(Mandatory = $true)][string]$ExePath,
-  [string]$TaskName = "POIPIU Kiosco"
+  [string]$TaskName = "POIPIU Kiosco",
+  # "tosu" = osu! real juega los mapas (opcion B, ver docs/OSU-NATIVO.md). Vacio = motor propio.
+  [ValidateSet("", "tosu")][string]$Source = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,7 +25,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 if (-not (Test-Path $ExePath)) { throw "No se encuentra $ExePath" }
 
 # 1. Abrir POIPIU al iniciar sesion y volver a abrirlo si se cae.
-$action   = New-ScheduledTaskAction -Execute $ExePath -WorkingDirectory (Split-Path $ExePath)
+$action   = New-ScheduledTaskAction -Execute $ExePath @(if ($Source) { @{ Argument = "--source=$Source" } } else { @{} }) -WorkingDirectory (Split-Path $ExePath)
 $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
   -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
