@@ -25,7 +25,9 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 if (-not (Test-Path $ExePath)) { throw "No se encuentra $ExePath" }
 
 # 1. Abrir POIPIU al iniciar sesion y volver a abrirlo si se cae.
-$action   = New-ScheduledTaskAction -Execute $ExePath @(if ($Source) { @{ Argument = "--source=$Source" } } else { @{} }) -WorkingDirectory (Split-Path $ExePath)
+$actionArgs = @{ Execute = $ExePath; WorkingDirectory = (Split-Path $ExePath) }
+if ($Source) { $actionArgs.Argument = "--source=$Source" }
+$action   = New-ScheduledTaskAction @actionArgs
 $trigger  = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $settings = New-ScheduledTaskSettingsSet -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
   -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
