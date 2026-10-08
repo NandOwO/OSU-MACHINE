@@ -18,6 +18,7 @@ export function openOperator(app: KioskApp): void {
     ["Exponente de la curva", "curveExponent", cfg.tickets.curveExponent, (v) => ({ tickets: { curveExponent: v } })],
     ["Objetos minimos para pagar tickets", "minObjectsForTickets", cfg.tickets.minObjectsForTickets, (v) => ({ tickets: { minObjectsForTickets: v } })],
     ["Largo maximo del nombre", "nameMaxLength", cfg.leaderboard.nameMaxLength, (v) => ({ leaderboard: { nameMaxLength: v } })],
+    ["Segundos de inactividad para cerrar la sesion", "inactivity", cfg.session.inactivitySeconds, (v) => ({ session: { inactivitySeconds: v } })],
     ["Tamano del ranking", "size", cfg.leaderboard.size, (v) => ({ leaderboard: { size: v } })],
   ];
   panel.append(el("h2", "", "REGLAS"));
@@ -32,6 +33,7 @@ export function openOperator(app: KioskApp): void {
   };
   boolRow("La tarjeta da un deposito", "cardGivesDeposit", cfg.credits.cardGivesDeposit, (v) => ({ credits: { cardGivesDeposit: v } }));
   boolRow("Sin tarjeta se pierden los tickets", "cardRequired", cfg.tickets.cardRequired, (v) => ({ tickets: { cardRequired: v } }));
+  boolRow("Barra de vida (las partidas se pueden perder)", "health", cfg.health.enabled, (v) => ({ health: { enabled: v } }));
   boolRow("Tutorial en la primera sesion", "tutorial", cfg.tutorial.enabledFirstSession, (v) => ({ tutorial: { enabledFirstSession: v } }));
 
   // ---- prizes

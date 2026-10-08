@@ -269,6 +269,8 @@ export class KioskApp {
     const skin = this.library.skins[this.skinIdx] ?? this.library.skins[0]!;
     this.scene = new PlayScene(this.canvas, map, skin, clock, this.manual ? null : audio, {
       auto: new URLSearchParams(location.search).has("bot"),
+      engine: { health: this.machine.cfg.health.enabled },
+      onFail: () => { this.stopSong?.(); this.stopSong = null; this.audio?.playFail(); },
       onFinish: (r) => this.onPlayFinished(e, skin.name, r),
     });
     this.showScreen();
@@ -278,7 +280,7 @@ export class KioskApp {
   private onPlayFinished(e: LibEntry, skinName: string, r: ReturnType<PlayScene["result"]>): void {
     this.stopSong?.(); this.stopSong = null;
     this.scene?.dispose(); this.scene = null;
-    this.machine.finishPlay({ mapKey: e.mapKey, objects: r.objects, score: r.score, maxScore: e.maxScore, accuracy: r.accuracy, maxCombo: r.maxCombo, n300: r.n300, n100: r.n100, n50: r.n50, miss: r.miss, skin: skinName });
+    this.machine.finishPlay({ mapKey: e.mapKey, objects: r.objects, score: r.score, maxScore: e.maxScore, accuracy: r.accuracy, maxCombo: r.maxCombo, n300: r.n300, n100: r.n100, n50: r.n50, miss: r.miss, skin: skinName, failed: r.failed });
   }
 
   /** Test hook: plays a tutorial map directly (no deposit, no audio) on a real-time clock. */

@@ -10,7 +10,7 @@ for (const [f, name] of pairs) {
   const map = applyStacking(parseBeatmap(readFileSync(`fixtures/private/${f}.osu`, "utf8")));
   const rep = parseReplay(new Uint8Array(readFileSync(`fixtures/private/${f}.osr`)));
   const sim = simulate(map, rep);
-  const eng = runReplay(map, rep, { spinner: { judgement: 100, flatPoints: 0 } });
+  const eng = runReplay(map, rep, { spinner: { judgement: 100, flatPoints: 0 }, health: false });
   const row = (n: string, a: number[]) => console.log(`  ${n.padEnd(8)}`, a.join(" / "));
   console.log(`== ${name}`);
   row("replay", [rep.n300, rep.n100, rep.n50, rep.miss, rep.maxCombo, rep.score]);

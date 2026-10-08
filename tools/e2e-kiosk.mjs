@@ -129,6 +129,32 @@ check(before - after === 3000, `redeeming the Funko took 3000 tickets (${before}
 await page.click("#prizes-close");
 check(await screen() === "idle", "session ends after prizes with no plays left");
 
+// --- a lost play: the player does nothing, the health bar empties
+{
+  const p2 = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  p2.on("pageerror", (e) => problems.push("pageerror(fail page): " + e.message));
+  await p2.goto(`http://localhost:${server.config.server.port}/?manual=1&fresh=1`);
+  await p2.waitForFunction(() => window.__poipiu?.app);
+  await p2.keyboard.press("Control+Shift+KeyO");
+  await p2.setInputFiles("#files", [osz]);
+  await p2.waitForFunction(() => window.__poipiu.library.entries.length > 0, null, { timeout: 20000 });
+  await p2.click("#op-close");
+  await p2.keyboard.press("KeyT");
+  await p2.click("#start"); await p2.click("#tut-skip"); await p2.click("#skin-ok");
+  await p2.click("#play");
+  await p2.waitForFunction(() => window.__poipiu.machine.screen === "playing");
+  const after = await p2.evaluate(() => { const app = window.__poipiu.app; let last = 0; for (let t = -3000; t < 120000 && app.machine.screen === "playing"; t += 100) { app.step(t); last = t; } const e = app.scene?.engine; return { last, screen: app.machine.screen, failed: e?.failed ?? null, hp: e?.hp ?? null, failTime: e?.failTime ?? null }; });
+  console.log("lost-play loop:", JSON.stringify(after));
+  await p2.waitForFunction(() => window.__poipiu.machine.screen === "results", null, { timeout: 5000, polling: 100 }).catch(async () => { console.log("screen now:", await p2.evaluate(() => window.__poipiu.machine.screen)); throw new Error("lost play did not reach results"); });
+  const rr = await p2.evaluate(() => window.__poipiu.machine.results);
+  check(rr.outcome.failed === true, "a player who does nothing loses the health bar");
+  check(rr.tickets === 0 && rr.rank === null, "a lost play pays no tickets and cannot enter the ranking");
+  check((await p2.evaluate(() => document.getElementById("ui").innerText)).includes("FALLASTE"), "results screen says FALLASTE");
+  check(await p2.evaluate(() => window.__poipiu.machine.playsLeft) === 2, "the lost play still cost one play");
+  await p2.screenshot({ path: `${outDir}/11-failed.png` });
+  await p2.close();
+}
+
 // --- persistence of the ranking inside the machine
 const rows = await page.evaluate(() => window.__poipiu.machine.boards.list(window.__poipiu.library.entries[0].mapKey).length);
 void rows;

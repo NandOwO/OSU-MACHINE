@@ -170,7 +170,8 @@ function results(app: KioskApp): HTMLElement {
   const m = app.machine, r = m.results!, o = r.outcome;
   const s = el("div", "screen");
   const rk = rankOf({ ...o, accuracy: o.accuracy });
-  s.append(el("h2", "title yellow", "COMPLETADO"));
+  s.append(el("h2", o.failed ? "title" : "title yellow", o.failed ? "FALLASTE" : "COMPLETADO"));
+  if (o.failed) { const t = s.querySelector("h2") as HTMLElement; t.style.color = "var(--judge-miss)"; t.style.textShadow = "0 0 14px var(--judge-miss)"; }
   const top = el("div", "btn-row"); top.style.alignItems = "center"; top.style.gap = "4vw";
   top.append(el("div", `rank ${rk}`, rk));
   const col = el("div"); const score = el("div", "big", "0"); score.id = "score";
@@ -180,7 +181,8 @@ function results(app: KioskApp): HTMLElement {
   const st = el("div", "stats");
   for (const [cls, lbl, v] of [["s300", "300", o.n300], ["s100", "100", o.n100], ["s50", "50", o.n50], ["s0", "FALLOS", o.miss]] as const) { const c = el("div", cls); c.append(el("span", "", lbl), el("b", "", String(v))); st.append(c); }
   s.append(st);
-  const tk = el("div", "big", r.tickets > 0 ? `+${r.tickets} TICKETS` : r.ticketsLost > 0 ? `SIN TARJETA: PERDISTE ${r.ticketsLost} TICKETS` : "0 TICKETS"); tk.id = "tickets-earned";
+  const tk = el("div", "big", o.failed ? "SIN TICKETS: PERDISTE LA VIDA" : r.tickets > 0 ? `+${r.tickets} TICKETS` : r.ticketsLost > 0 ? `SIN TARJETA: PERDISTE ${r.ticketsLost} TICKETS` : "0 TICKETS"); tk.id = "tickets-earned";
+  if (o.failed) { tk.style.color = "var(--judge-miss)"; tk.style.fontSize = "1.8vw"; }
   if (r.ticketsLost > 0) { tk.style.color = "var(--judge-miss)"; tk.style.fontSize = "1.8vw"; }
   s.append(tk);
   if (r.rank !== null) s.append(el("div", "sub blink", `ENTRASTE AL TOP 50 - PUESTO #${r.rank}`));

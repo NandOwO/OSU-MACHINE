@@ -9,6 +9,7 @@ import {
   hitScore,
 } from "../scoring/scoreV1.js";
 import { hitWindows, radiusFor, spinnerRotationsPerSecond } from "./geometry.js";
+import { DEFAULT_HEALTH, HealthTracker, type HealthParams } from "./health.js";
 
 export type Judgement = 300 | 100 | 50 | 0;
 
@@ -19,12 +20,15 @@ export interface EngineOptions {
   earlyMissWindow: number;
   /** "rotation": judge spinners from the cursor's rotation. Otherwise a fixed result (used to compare with replays). */
   spinner: "rotation" | { judgement: Judgement; flatPoints: number };
+  /** Health bar: `true` uses the default model, `false` turns it off (nobody can fail). */
+  health: boolean | HealthParams;
 }
 
 export const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
   followMultiplier: 2.4,
   earlyMissWindow: 400,
   spinner: "rotation",
+  health: true,
 };
 
 /** Key mask bits: 1=M1, 2=M2, 4=K1, 8=K2 (same as .osr). Only the low 4 bits count. */
@@ -36,7 +40,8 @@ export type EngineEvent =
   | { type: "sliderElement"; index: number; element: "tick" | "repeat" | "tail"; hit: boolean; time: number; x: number; y: number }
   | { type: "sliderEnd"; index: number; judgement: Judgement; time: number; x: number; y: number }
   | { type: "spinner"; index: number; judgement: Judgement; rotations: number; time: number }
-  | { type: "spin"; index: number; rotations: number; time: number };
+  | { type: "spin"; index: number; rotations: number; time: number }
+  | { type: "fail"; time: number };
 
 export interface ObjectResult {
   index: number;
@@ -82,6 +87,7 @@ export class GameEngine {
   private readonly w: { w300: number; w100: number; w50: number };
   private readonly objs: ObjState[];
   private readonly spinnerIdx: number[];
+  private readonly healthTracker: HealthTracker | null;
 
   score = 0;
   combo = 0;
@@ -119,6 +125,8 @@ export class GameEngine {
       rotations: 0,
       lastAngle: null,
     }));
+    this.healthTracker = this.options.health === false ? null
+      : new HealthTracker(map.hitObjects.map((o) => o.time), map.breaks, map.difficulty.hp, this.options.health === true ? DEFAULT_HEALTH : this.options.health, undefined, lastEnd);
     this.spinnerIdx = map.hitObjects.flatMap((o, i) => (o.kind === "spinner" ? [i] : []));
     this.advanceHeadPtr();
   }
@@ -128,7 +136,12 @@ export class GameEngine {
     const n = this.judged;
     return n === 0 ? 1 : (300 * this.n300 + 100 * this.n100 + 50 * this.n50) / (300 * n);
   }
-  get finished(): boolean { return this.objs.every((o) => o.done); }
+  get finished(): boolean { return this.failed || this.objs.every((o) => o.done); }
+  /** Health bar in 0..1 (1 when health is off). */
+  get hp(): number { return this.healthTracker?.hp ?? 1; }
+  get failed(): boolean { return this.healthTracker?.failed ?? false; }
+  /** Song time (ms) at which the player ran out of health, or null. */
+  get failTime(): number | null { return this.healthTracker?.failedAt ?? null; }
 
   /** Returns and clears the events produced since the last call. */
   drainEvents(): EngineEvent[] {
@@ -142,6 +155,7 @@ export class GameEngine {
    * Times must not go backwards (they are clamped if they do).
    */
   input(t: number, x: number, y: number, mask: number): void {
+    if (this.failed) return;
     if (t < this.lastT) t = this.lastT;
     this.lastT = t;
     this.samples.push({ t, x, y, mask: mask & KEY_MASK });
@@ -156,7 +170,8 @@ export class GameEngine {
   /** Advances time without a new input: repeats the last known input state. */
   tick(t: number): void {
     const s = this.samples[this.samples.length - 1];
-    if (!s) return;
+    // A player who never touches the mouse produces no input at all, but time must still run.
+    if (!s) { this.input(t, 256, 192, 0); return; }
     if (t > s.t) this.input(t, s.x, s.y, s.mask);
   }
 
@@ -214,8 +229,9 @@ export class GameEngine {
     this.combo += 1;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
   }
-  private count(j: Judgement): void {
+  private count(j: Judgement, at: number): void {
     if (j === 300) this.n300++; else if (j === 100) this.n100++; else if (j === 50) this.n50++; else this.miss++;
+    if (this.healthTracker && !this.healthTracker.failed && this.healthTracker.judge(j, at)) this.events.push({ type: "fail", time: this.healthTracker.failedAt ?? at });
   }
   private record(o: ObjState, judgement: Judgement, kind: ObjectResult["kind"], total: number): void {
     const obj = this.map.hitObjects[o.index]!;
@@ -235,6 +251,7 @@ export class GameEngine {
   /** Runs every timed action (head misses, slider elements, spinner ends) due by time `t`, in order. */
   private advance(t: number): void {
     for (;;) {
+      if (this.failed) return;
       let best: { time: number; run: () => void } | null = null;
       for (let i = this.headPtr; i < this.objs.length; i++) {
         const o = this.objs[i]!;
@@ -268,9 +285,16 @@ export class GameEngine {
           best = { time: obj.endTime, run: () => this.endSpinner(o, obj.endTime) };
         }
       }
-      if (!best) return;
+      if (!best) { this.drainHealth(t); return; }
       best.run();
     }
+  }
+
+  private drainHealth(t: number): void {
+    const h = this.healthTracker;
+    if (!h || h.failed) return;
+    h.drainTo(t);
+    if (h.failed) this.events.push({ type: "fail", time: h.failedAt ?? t });
   }
 
   // ---------------------------------------------------------------- circles and slider heads
@@ -298,7 +322,7 @@ export class GameEngine {
     this.advanceHeadPtr();
     if (obj.kind === "circle") {
       this.score += hitScore(j, this.combo, this.d);
-      this.count(j);
+      this.count(j, t);
       this.bump();
       o.done = true;
       this.events.push({ type: "hit", index: o.index, judgement: j, time: t, x: obj.x, y: obj.y, head: false });
@@ -316,7 +340,7 @@ export class GameEngine {
     if (early && o.pressDelta === null) o.pressDelta = at - obj.time;
     this.advanceHeadPtr();
     if (obj.kind === "circle") {
-      this.miss++;
+      this.count(0, at);
       this.combo = 0;
       o.done = true;
       this.events.push({ type: "miss", index: o.index, time: at, x: obj.x, y: obj.y, head: false });
@@ -364,7 +388,7 @@ export class GameEngine {
     }
     if (isTail) {
       const j = this.sliderJudgement(o.hit, total);
-      this.count(j);
+      this.count(j, ev.time);
       o.done = true;
       this.events.push({ type: "sliderEnd", index: o.index, judgement: j, time: ev.time, x: ev.position.x, y: ev.position.y });
       this.record(o, j, "slider", total);
@@ -422,7 +446,7 @@ export class GameEngine {
       this.score += sp.flatPoints;
     }
     if (j) this.score += hitScore(j, this.combo, this.d);
-    this.count(j);
+    this.count(j, at);
     if (j) this.bump(); else this.combo = 0;
     this.events.push({ type: "spinner", index: o.index, judgement: j, rotations: o.rotations, time: at });
     this.record(o, j, "spinner", 1);

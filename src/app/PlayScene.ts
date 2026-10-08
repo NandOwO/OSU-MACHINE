@@ -9,6 +9,7 @@ import { FIELD, LOGICAL_H, LOGICAL_W, PlayRenderer, toOsu } from "../render/Play
 export interface PlayResult {
   score: number; maxCombo: number; accuracy: number;
   n300: number; n100: number; n50: number; miss: number; objects: number;
+  failed: boolean;
 }
 
 export interface PlaySceneOptions {
@@ -22,6 +23,8 @@ export interface PlaySceneOptions {
   /** Seconds-based countdown shown while the song time is negative (default true). */
   countdown?: boolean;
   onFinish?: (r: PlayResult) => void;
+  /** Called once when the health bar empties. */
+  onFail?: () => void;
   onEvents?: (events: EngineEvent[]) => void;
 }
 
@@ -37,6 +40,7 @@ export class PlayScene {
   private autoSamples: InputSample[] = [];
   private autoPtr = 0;
   private finished = false;
+  private failNotified = false;
   private disposers: (() => void)[] = [];
   private lastEnd: number;
   /** Rolling record of the latest hit offsets, for the hit error bar. */
@@ -121,7 +125,9 @@ export class PlayScene {
     if (this.options.hud !== false) this.drawHud(g, now);
     if (this.options.countdown !== false && now < 0 && !this.options.auto) this.drawCountdown(g, now);
 
-    if (!this.finished && now > this.lastEnd + 1500 && this.engine.finished) {
+    if (this.engine.failed && !this.failNotified) { this.failNotified = true; this.options.onFail?.(); }
+    const failDone = this.engine.failed && this.engine.failTime !== null && now > this.engine.failTime + 2200;
+    if (!this.finished && (failDone || (now > this.lastEnd + 1500 && this.engine.finished))) {
       this.finished = true;
       this.options.onFinish?.(this.result());
     }
@@ -130,7 +136,7 @@ export class PlayScene {
 
   result(): PlayResult {
     const e = this.engine;
-    return { score: e.score, maxCombo: e.maxCombo, accuracy: e.accuracy, n300: e.n300, n100: e.n100, n50: e.n50, miss: e.miss, objects: this.map.hitObjects.length };
+    return { score: e.score, maxCombo: e.maxCombo, accuracy: e.accuracy, n300: e.n300, n100: e.n100, n50: e.n50, miss: e.miss, objects: this.map.hitObjects.length, failed: e.failed };
   }
 
   // ------------------------------------------------------------------ HUD
@@ -160,6 +166,16 @@ export class PlayScene {
     text((e.accuracy * 100).toFixed(2) + "%", LOGICAL_W - 60, 300, 38, "#7cff4f", "right");
     text("COMBO", 60, LOGICAL_H - 170, 18, "#8c88b8");
     text("x" + e.combo, 60, LOGICAL_H - 110, 72, "#00e5ff");
+    // health bar
+    const hp = e.hp, hx = FIELD.x, hy = 100;
+    g.fillStyle = "rgba(255,255,255,0.14)"; g.fillRect(hx, hy, 1024, 14);
+    g.fillStyle = hp > 0.5 ? "#7cff4f" : hp > 0.25 ? "#ffd23f" : "#ff3b3b";
+    g.shadowColor = g.fillStyle; g.shadowBlur = hp < 0.25 ? 18 : 6; g.fillRect(hx, hy, 1024 * hp, 14); g.shadowBlur = 0;
+    if (e.failed) {
+      const ft = e.failTime ?? now, k = Math.min(1, (now - ft) / 400);
+      g.fillStyle = `rgba(120,0,20,${0.5 * k})`; g.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
+      text("FALLASTE", LOGICAL_W / 2, LOGICAL_H / 2, 90, "#ff3b3b", "center");
+    }
     // progress
     const first = this.map.hitObjects[0]!.time, p = Math.min(1, Math.max(0, (now - first) / Math.max(1, this.lastEnd - first)));
     g.fillStyle = "rgba(255,255,255,0.14)"; g.fillRect(FIELD.x, LOGICAL_H - 40, 1024, 8);

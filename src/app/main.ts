@@ -19,7 +19,7 @@ async function boot(): Promise<void> {
   const app = new KioskApp({ root, canvas, machine, library, manual });
   app.start();
   // End a session that nobody is touching.
-  if (!manual) setInterval(() => machine.checkInactivity(120_000), 5000);
+  if (!manual) setInterval(() => machine.checkInactivity(machine.cfg.session.inactivitySeconds * 1000), 5000);
   (window as unknown as { __poipiu: unknown }).__poipiu = { app, machine, library };
 }
 void boot();

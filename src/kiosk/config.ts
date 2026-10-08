@@ -19,6 +19,10 @@ export interface KioskConfig {
   prizes: Prize[];
   leaderboard: { size: number; nameMaxLength: number; nameCharset: string };
   tutorial: { enabledFirstSession: boolean };
+  /** With health on, a play can be lost (no tickets, no ranking). */
+  health: { enabled: boolean };
+  /** A session nobody touches for this long is closed. */
+  session: { inactivitySeconds: number };
 }
 
 export const DEFAULT_CONFIG: KioskConfig = {
@@ -35,6 +39,8 @@ export const DEFAULT_CONFIG: KioskConfig = {
   ],
   leaderboard: { size: 50, nameMaxLength: 8, nameCharset: "A-Z0-9 _-" },
   tutorial: { enabledFirstSession: true },
+  health: { enabled: true },
+  session: { inactivitySeconds: 120 },
 };
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -69,6 +75,8 @@ export function mergeConfig(partial: unknown, base: KioskConfig = DEFAULT_CONFIG
     if (typeof l.nameCharset === "string" && l.nameCharset.length > 0 && l.nameCharset.length < 80) out.leaderboard.nameCharset = l.nameCharset;
   }
   if (isObj(partial.tutorial)) out.tutorial.enabledFirstSession = bool(partial.tutorial.enabledFirstSession, out.tutorial.enabledFirstSession);
+  if (isObj(partial.session)) out.session.inactivitySeconds = Math.round(num(partial.session.inactivitySeconds, 15, 3600, out.session.inactivitySeconds));
+  if (isObj(partial.health)) out.health.enabled = bool(partial.health.enabled, out.health.enabled);
   return out;
 }
 

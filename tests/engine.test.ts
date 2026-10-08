@@ -111,7 +111,7 @@ for (const f of ["erisu-insane", "kimi", "shiori"]) {
     const map = applyStacking(parseBeatmap(readFileSync(osu, "utf8")));
     const rep = parseReplay(new Uint8Array(readFileSync(osr)));
     const sim = simulate(map, rep);
-    const eng = runReplay(map, rep, { spinner: { judgement: 100, flatPoints: 0 } });
+    const eng = runReplay(map, rep, { spinner: { judgement: 100, flatPoints: 0 }, health: false });
     it("same judgements, combo and score", () => {
       expect([eng.n300, eng.n100, eng.n50, eng.miss, eng.maxCombo, eng.score]).toEqual([sim.n300, sim.n100, sim.n50, sim.miss, sim.maxCombo, sim.score]);
     });

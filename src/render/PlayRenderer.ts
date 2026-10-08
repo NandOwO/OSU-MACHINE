@@ -85,6 +85,7 @@ export class PlayRenderer {
   /** Feeds judgement events so hits fade out and judgement popups appear. */
   onEvents(events: EngineEvent[]): void {
     for (const e of events) {
+      if (e.type === "fail") continue;
       const v = this.visual.get(e.index) ?? { judge: null, hitTime: -Infinity, endTime: -Infinity };
       if (e.type === "hit") { v.hitTime = e.time; if (!e.head) { v.judge = e.judgement; v.endTime = e.time; } }
       else if (e.type === "miss") { v.hitTime = e.time; if (!e.head) { v.judge = 0; v.endTime = e.time; } }

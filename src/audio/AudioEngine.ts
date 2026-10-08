@@ -56,6 +56,14 @@ export class AudioEngine {
     src.start();
   }
 
+  /** A short falling tone for a lost play. */
+  playFail(): void {
+    const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime;
+    o.type = "sawtooth"; o.frequency.setValueAtTime(440, t); o.frequency.exponentialRampToValueAtTime(55, t + 0.9);
+    g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + 1);
+  }
+
   /**
    * Starts a song so that song time 0 happens `leadInMs` from now. Song time is derived from the
    * audio hardware clock, so it does not drift with frame rate.
