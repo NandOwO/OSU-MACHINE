@@ -25,7 +25,7 @@ function setup(opt: Partial<BridgeOptions> = {}, card = true) {
   if (card) m.scanCard("A3F2"); else m.insertCoin();
   m.continueFromCredit(); if (m.screen === "tutorial") m.finishTutorial(); m.chooseSkin();
   const events: BridgeEvent[] = [];
-  const bridge = new OsuBridge(m, { resolve: () => ref, verify: "off", onEvent: (e) => events.push(e), ...opt });
+  const bridge = new OsuBridge(m, { resolve: () => ref, verify: "off", settleMs: 0, onEvent: (e) => events.push(e), ...opt });
   const feed = new ManualFeed(); bridge.attach(feed);
   const run = async (kind: Scenario) => { for (const s of scenarioSnapshots(map, info, kind)) feed.emit(s); await bridge.idle(); };
   return { m, bridge, feed, events, run };
@@ -83,11 +83,34 @@ describe("OsuBridge: a real osu! play becomes a play of the machine", () => {
     // HD alone, not the HD+DT of the scenario
     const snaps = scenarioSnapshots(map, info, "complete").map((s) => ({ ...s, mods: s.state === "songSelect" ? [] : ["HD"] }));
     const feed = new ManualFeed(); const events: BridgeEvent[] = [];
-    const b = new OsuBridge(m, { resolve: () => ref, verify: "off", allowedMods: ["HD"], onEvent: (e) => events.push(e) }); b.attach(feed);
+    const b = new OsuBridge(m, { resolve: () => ref, verify: "off", settleMs: 0, allowedMods: ["HD"], onEvent: (e) => events.push(e) }); b.attach(feed);
     for (const s of snaps) feed.emit(s);
     await b.idle();
     expect(m.results!.outcome.invalid).toBeUndefined();
     void run;
+  });
+  it("a result screen that arrives with empty numbers does not zero the play (real tosu behaviour)", async () => {
+    const { m, feed, bridge } = setup({ settleMs: 40 });
+    const snaps = scenarioSnapshots(map, info, "complete");
+    const result = snaps.find((s) => s.state === "result")!;
+    for (const s of snaps.filter((x) => x.state === "play")) feed.emit(s);
+    feed.emit({ ...result, score: 0, n300: 0, maxCombo: 0, accuracy: 0 }); // first, empty
+    feed.emit(result); // then the real numbers
+    feed.emit(emptySnapshot("songSelect"));
+    await bridge.idle();
+    expect(m.screen).toBe("results");
+    expect(m.results!.outcome.score).toBe(ref.maxScore);
+    expect(m.results!.tickets).toBe(100);
+  });
+  it("if the result screen stays empty, the last numbers of the play are used", async () => {
+    const { m, feed, bridge } = setup({ settleMs: 20 });
+    const snaps = scenarioSnapshots(map, info, "complete");
+    const result = snaps.find((s) => s.state === "result")!;
+    for (const s of snaps.filter((x) => x.state === "play")) feed.emit(s);
+    feed.emit({ ...result, score: 0, n300: 0, maxCombo: 0 });
+    await new Promise((r) => setTimeout(r, 120));
+    await bridge.idle();
+    expect(m.results!.outcome.score).toBe(ref.maxScore);
   });
   it("without a card the tickets are lost, as in the rest of the machine", async () => {
     const { m, run } = setup({}, false);
@@ -188,7 +211,7 @@ describe("tosu over a real WebSocket (mock server)", () => {
     clock = 1_000_000;
     const m = new KioskMachine(new MemoryStore(), undefined, () => clock);
     m.scanCard("A3F2"); m.continueFromCredit(); if (m.screen === "tutorial") m.finishTutorial(); m.chooseSkin();
-    const bridge = new OsuBridge(m, { resolve: () => ref, verify: "off" }); bridge.attach(feed);
+    const bridge = new OsuBridge(m, { resolve: () => ref, verify: "off", settleMs: 0 }); bridge.attach(feed);
     await srv.play(scenarioSnapshots(map, info, "complete"), 1);
     for (let i = 0; i < 100 && m.screen !== "results"; i++) await new Promise((r) => setTimeout(r, 20));
     await bridge.idle();

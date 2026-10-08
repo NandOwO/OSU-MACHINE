@@ -23,6 +23,8 @@ export interface BridgeOptions {
   /** strict: a play without a matching replay is not paid. log: only reported. off: no check. */
   verify?: "strict" | "log" | "off";
   tolerance?: number;
+  /** osu! may report the result screen before its numbers are filled in: wait this long for the best snapshot (ms). Default 1200; 0 = use the first. */
+  settleMs?: number;
   onEvent?: (e: BridgeEvent) => void;
 }
 
@@ -34,6 +36,9 @@ export class OsuBridge {
   private rogue = false;
   private chain: Promise<void> = Promise.resolve();
   private off: (() => void) | null = null;
+  /** The best result-screen snapshot seen so far for the play that just ended, and the timer that closes it. */
+  private best: OsuSnapshot | null = null;
+  private settle: ReturnType<typeof setTimeout> | null = null;
   constructor(private readonly machine: KioskMachine, private readonly opt: BridgeOptions) {}
 
   attach(feed: SnapshotFeed): void { this.off?.(); this.off = feed.subscribe((s) => this.push(s)); }
@@ -47,6 +52,7 @@ export class OsuBridge {
   private async handle(s: OsuSnapshot): Promise<void> {
     if (s.state === "play") {
       if (this.rogue) return;
+      if (this.best) await this.closeResult(); // a new play started before the result timer fired
       if (this.active && s.timeMs < this.active.last.timeMs - 1500) await this.end(null, "REINTENTO"); // restarted: the old play is lost
       if (!this.active) {
         const ref = this.opt.resolve(s);
@@ -58,11 +64,25 @@ export class OsuBridge {
       this.active.last = s;
     } else if (s.state === "result") {
       this.rogue = false;
-      if (this.active) await this.end(s);
+      if (!this.active) return;
+      if (!this.best || s.score >= this.best.score) this.best = s;
+      const wait = this.opt.settleMs ?? 1200;
+      if (wait <= 0) await this.closeResult();
+      else if (!this.settle) this.settle = setTimeout(() => { this.chain = this.chain.then(() => this.closeResult()).catch(() => undefined); }, wait);
     } else if (s.state === "songSelect" || s.state === "menu") {
       this.rogue = false;
-      if (this.active) await this.end(null, "SALIO DE LA PARTIDA");
+      if (this.best) await this.closeResult();
+      else if (this.active) await this.end(null, "SALIO DE LA PARTIDA");
     }
+  }
+
+  /** Ends the play with the best snapshot: the result screen's, or the last one of the play if osu! left the numbers empty. */
+  private async closeResult(): Promise<void> {
+    if (this.settle) { clearTimeout(this.settle); this.settle = null; }
+    const r = this.best; this.best = null;
+    if (!this.active || !r) return;
+    const last = this.active.last;
+    await this.end(last.score > r.score ? { ...last, state: "result" } : r);
   }
 
   /** Closes the current play. `final` = the result screen snapshot; null = it ended without one (fail or quit). */
