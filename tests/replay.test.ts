@@ -11,6 +11,7 @@ const OSR = "fixtures/private/erisu-insane.osr";
 const have = existsSync(OSU) && existsSync(OSR);
 
 describe.skipIf(!have)("replay validation: Deneb to Spica [Erisu's Insane]", () => {
+  if (!have) return; // suites are collected even when skipped: do not read missing files
   const map = parseBeatmap(readFileSync(OSU, "utf8"));
   const replay = parseReplay(new Uint8Array(readFileSync(OSR)));
   const sim = simulate(map, replay);
@@ -41,6 +42,7 @@ for (const [name, osu, osr, tol] of [
   ["Kimi no Sei [NiNo's Insane]", "fixtures/private/kimi.osu", "fixtures/private/kimi.osr", 0.02],
 ] as const) {
   describe.skipIf(!(existsSync(osu) && existsSync(osr)))(`replay approximation: ${name}`, () => {
+  if (!(existsSync(osu) && existsSync(osr))) return; // suites are collected even when skipped: do not read missing files
     const map = applyStacking(parseBeatmap(readFileSync(osu, "utf8")));
     const replay = parseReplay(new Uint8Array(readFileSync(osr)));
     const sim = simulate(map, replay);

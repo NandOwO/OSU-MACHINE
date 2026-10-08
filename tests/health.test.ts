@@ -102,6 +102,7 @@ const REAL: [string, number | null, number | null][] = [["erisu-insane", 72300, 
 for (const [f, lo, hi] of REAL) {
   const osu = `fixtures/private/${f}.osu`, osr = `fixtures/private/${f}.osr`;
   describe.skipIf(!(existsSync(osu) && existsSync(osr)))(`health on a real replay: ${f}`, () => {
+  if (!(existsSync(osu) && existsSync(osr))) return; // suites are collected even when skipped: do not read missing files
     const map = applyStacking(parseBeatmap(readFileSync(osu, "utf8")));
     const rep = parseReplay(new Uint8Array(readFileSync(osr)));
     const e = runReplay(map, rep, { spinner: { judgement: 100, flatPoints: 0 } });

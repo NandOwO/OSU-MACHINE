@@ -108,6 +108,7 @@ describe("GameEngine judgements", () => {
 for (const f of ["erisu-insane", "kimi", "shiori"]) {
   const osu = `fixtures/private/${f}.osu`, osr = `fixtures/private/${f}.osr`;
   describe.skipIf(!(existsSync(osu) && existsSync(osr)))(`engine equals simulator: ${f}`, () => {
+  if (!(existsSync(osu) && existsSync(osr))) return; // suites are collected even when skipped: do not read missing files
     const map = applyStacking(parseBeatmap(readFileSync(osu, "utf8")));
     const rep = parseReplay(new Uint8Array(readFileSync(osr)));
     const sim = simulate(map, rep);
