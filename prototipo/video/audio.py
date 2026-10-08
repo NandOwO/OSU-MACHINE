@@ -1,21 +1,25 @@
-"""Original synthesized soundtrack for the POIPIU promo (120 BPM, 40 s). Output: promo.wav"""
+"""Soundtrack mixer for the POIPIU promo (40 s).
+Intro: synthesized riser + impact. From 3.0 s: the map's own song, trimmed so it stays in sync with the replay,
+plus synthesized effects for every on-screen event. Usage: python3 -I audio.py <song.wav or ""> <out.wav>"""
 import sys, wave
 import numpy as np
 
 SR = 44100
 DUR = 40.0
 N = int(SR * DUR)
-BEAT = 0.5
-out = np.zeros(N, dtype=np.float64)
+out = np.zeros((N, 2), dtype=np.float64)
 rng = np.random.default_rng(7)
+song_path, out_path = sys.argv[1], sys.argv[2]
 
 
-def put(sig, t0, gain=1.0):
+def put(sig, t0, gain=1.0, pan=0.0):
     i = int(t0 * SR)
     if i >= N:
         return
     j = min(N, i + len(sig))
-    out[i:j] += sig[: j - i] * gain
+    seg = sig[: j - i] * gain
+    out[i:j, 0] += seg * (1 - max(0, pan))
+    out[i:j, 1] += seg * (1 + min(0, pan))
 
 
 def tarr(d):
@@ -28,29 +32,10 @@ def kick():
     return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 11)
 
 
-def clap():
-    t = tarr(0.22)
-    n = rng.standard_normal(len(t))
-    return (n * np.exp(-t * 22) * 0.6 + np.sin(2 * np.pi * 190 * t) * np.exp(-t * 30) * 0.3)
-
-
-def hat(open_=False):
-    t = tarr(0.18 if open_ else 0.06)
-    n = np.diff(rng.standard_normal(len(t) + 1))
-    return n * np.exp(-t * (28 if open_ else 80))
-
-
-def tone(freq, d, shape="tri", decay=5.0, harm=0):
+def tone(freq, d, shape="tri", decay=5.0):
     t = tarr(d)
     x = 2 * np.pi * freq * t
-    if shape == "sine":
-        s = np.sin(x)
-    elif shape == "tri":
-        s = (2 / np.pi) * np.arcsin(np.sin(x))
-    elif shape == "square":
-        s = np.sign(np.sin(x)) * 0.5
-    else:  # saw (band-limited-ish)
-        s = sum(np.sin(x * k) / k for k in range(1, 6)) * 0.6
+    s = np.sin(x) if shape == "sine" else (2 / np.pi) * np.arcsin(np.sin(x)) if shape == "tri" else np.sign(np.sin(x)) * 0.5
     return s * np.exp(-t * decay)
 
 
@@ -62,8 +47,7 @@ def bell(freq, d=0.9):
 def whoosh(d=0.4):
     t = tarr(d)
     n = np.diff(rng.standard_normal(len(t) + 1))
-    env = np.sin(np.pi * t / d) ** 2
-    return n * env * (0.2 + 0.8 * t / d)
+    return n * np.sin(np.pi * t / d) ** 2 * (0.2 + 0.8 * t / d)
 
 
 def pad(freqs, d, gain=0.12):
@@ -74,95 +58,83 @@ def pad(freqs, d, gain=0.12):
 
 NOTE = lambda n: 440.0 * 2 ** ((n - 69) / 12)
 
-# --- 0-3 s intro: riser, impact, pad
+# --- intro 0-3 s
 t = tarr(1.5)
 n = np.diff(rng.standard_normal(len(t) + 1))
-put(n * (t / 1.5) ** 2 * 0.5, 0, 1)
-put(np.sin(2 * np.pi * np.cumsum(200 + 1800 * (t / 1.5) ** 2) / SR) * (t / 1.5) ** 2 * 0.3, 0, 1)
+put(n * (t / 1.5) ** 2 * 0.5, 0)
+put(np.sin(2 * np.pi * np.cumsum(200 + 1800 * (t / 1.5) ** 2) / SR) * (t / 1.5) ** 2 * 0.3, 0)
 t = tarr(1.6)
-put(np.sin(2 * np.pi * 38 * t) * np.exp(-t * 2.2) * 1.0, 1.5, 1)
-put(kick() * 1.2, 1.5, 1)
-put(rng.standard_normal(int(0.5 * SR)) * np.exp(-tarr(0.5) * 9) * 0.4, 1.5, 1)
-put(pad([NOTE(57), NOTE(60), NOTE(64)], 1.6), 1.5, 1)
+put(np.sin(2 * np.pi * 38 * t) * np.exp(-t * 2.2), 1.5)
+put(kick() * 1.2, 1.5)
+put(rng.standard_normal(int(0.5 * SR)) * np.exp(-tarr(0.5) * 9) * 0.4, 1.5)
+put(pad([NOTE(57), NOTE(60), NOTE(64)], 1.6), 1.5)
 
-# --- cuts: whoosh
-for b in (3, 8, 14, 20, 27, 34):
+# --- the map's song, in sync with the replay (song time 36 s at video time 3 s)
+if song_path:
+    with wave.open(song_path, "rb") as w:
+        assert w.getnchannels() == 2 and w.getsampwidth() == 2 and w.getframerate() == SR
+        raw = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).reshape(-1, 2) / 32768.0
+    m = min(len(raw), N - int(3 * SR))
+    seg = raw[:m].copy()
+    fade_in = int(0.12 * SR)
+    seg[:fade_in] *= np.linspace(0, 1, fade_in)[:, None]
+    out[int(3 * SR): int(3 * SR) + m] += seg * 0.9
+else:
+    # Fallback without the song: a plain synthesized pulse so the video is still usable.
+    for k in range(int((DUR - 3) / 0.5)):
+        put(kick(), 3 + k * 0.5, 0.8)
+
+CUTS = (3, 11, 16, 21, 28, 35)
+for b in CUTS:
     put(whoosh(0.45), b - 0.25, 0.5)
 
-# --- groove 3-34
-roots = [NOTE(33), NOTE(29), NOTE(36), NOTE(31)]  # A1 F1 C2 G1
-t0 = 3.0
-while t0 < 34.0 - 1e-6:
-    beat = int(round((t0 - 3.0) / BEAT))
-    put(kick(), t0, 0.95)
-    if beat % 2 == 1:
-        put(clap(), t0, 0.6)
-    put(hat(), t0 + 0.25, 0.5)
-    if beat % 4 == 3:
-        put(hat(True), t0 + 0.25, 0.4)
-    bar = int((t0 - 3.0) // 2) % 4
-    r = roots[bar]
-    for k, mul in enumerate((1, 1, 2, 1)):
-        put(tone(r * mul, 0.22, "saw", 7), t0 + k * 0.125, 0.33)
-    t0 += BEAT
+# --- scene 2: skin swaps
+for tt in (3 + 8 / 3, 3 + 16 / 3):
+    put(whoosh(0.3), tt - 0.05, 0.45)
+    put(tone(1568, 0.1, "sine", 25), tt + 0.02, 0.25)
 
-# --- scene 2 hit blips (circles at 3.5 + 0.5 i)
-for i in range(9):
-    put(tone(1318.5, 0.12, "sine", 25), 3.5 + i * 0.5, 0.35)
+# --- scene 3: cards, odometer ticks, chime
+put(whoosh(0.35), 11.15, 0.35, -0.5)
+put(whoosh(0.35), 11.40, 0.35, 0.5)
+tt = 11.75
+while tt < 14.4:
+    put(tone(1300, 0.03, "square", 70), tt, 0.14)
+    tt += 0.075
+put(bell(NOTE(84)) + bell(NOTE(88)) + bell(NOTE(91)), 14.45, 0.22)
 
-# --- lead arpeggio 8-34 (sparkle), muted during ticket scene tail
-penta = [NOTE(n) for n in (69, 72, 74, 76, 79, 81)]
-k = 0
-t0 = 8.0
-while t0 < 34.0:
-    if not (14 <= t0 < 20):
-        put(tone(penta[(k * 3) % 6], 0.2, "tri", 9), t0, 0.26 if t0 < 27 else 0.18)
-    k += 1
-    t0 += 0.25
+# --- scene 4: selection moves
+for k, tt in enumerate((16.0, 17.7, 19.4)):
+    put(tone(NOTE(76 + 2 * k), 0.12, "square", 20), tt + 0.02, 0.18)
 
-# --- scene 3 score-arrival blips
-for i in range(22):
-    put(tone(1568 if i % 5 != 4 else 1760, 0.1, "sine", 22), 8.3 + i * 0.25 + 0.55, 0.22)
+# --- scene 5: row drop, typing, chime
+put(whoosh(0.35), 21.95, 0.4)
+put(tone(180, 0.15, "sine", 18), 22.55, 0.5)
+for i in range(8):
+    put(tone(1100, 0.04, "square", 60), 23.2 + i * 0.42, 0.3)
+put(bell(NOTE(84)) + bell(NOTE(88)) + bell(NOTE(91)), 26.6, 0.24)
 
-# --- scene 4 skin swaps
-for tt in (14.0, 16.0, 18.0):
-    put(whoosh(0.35), tt, 0.4)
-    put(tone(880, 0.12, "square", 20), tt + 0.3, 0.2)
-
-# --- scene 5 typing clicks + chime
-for i in range(6):
-    put(tone(1100, 0.04, "square", 60), 22.2 + i * 0.45, 0.4)
-put(bell(NOTE(84)) + bell(NOTE(88)) + bell(NOTE(91)), 25.5, 0.22)
-
-# --- scene 6 ticket sparkles + cha-ching
+# --- scene 6: ticket sparkles + prize
 r2 = np.random.default_rng(3)
-tt = 27.5
-while tt < 32.0:
-    put(bell(float(r2.choice([1568, 1976, 2349, 2637])), 0.35), tt, 0.12)
+tt = 28.4
+while tt < 32.9:
+    put(bell(float(r2.choice([1568, 1976, 2349, 2637])), 0.35), tt, 0.1)
     tt += 0.11 + r2.random() * 0.1
-put(bell(1568, 1.0), 32.4, 0.3)
-put(bell(2093, 1.2), 32.55, 0.3)
+put(bell(1568, 1.0), 33.4, 0.28)
+put(bell(2093, 1.2), 33.55, 0.28)
 
-# --- scene 7: breakdown pad + coins
-put(pad([NOTE(57), NOTE(60), NOTE(64), NOTE(69)], 3.0), 34.0, 0.9)
-put(pad([NOTE(53), NOTE(57), NOTE(60), NOTE(65)], 3.0), 37.0, 0.9)
-for c in (35.5, 37.5, 39.0):
-    put(tone(1976, 0.08, "square", 30), c + 0.45, 0.28)
-    put(bell(2637, 0.7), c + 0.53, 0.3)
-put(kick(), 34.0, 0.9)
-for k in range(4):
-    put(kick(), 36.0 + k * 0.5, 0.5)
+# --- scene 7: coins
+for c in (36.5, 38.0, 39.2):
+    put(tone(1976, 0.08, "square", 30), c + 0.45, 0.25)
+    put(bell(2637, 0.7), c + 0.53, 0.28)
 
-# --- master: soft clip, fade out, normalise
-out = np.tanh(out * 1.1)
+# --- master
 fade = np.ones(N)
-fade[-int(0.5 * SR):] = np.linspace(1, 0, int(0.5 * SR))
-fade[: int(0.05 * SR)] = np.linspace(0, 1, int(0.05 * SR))
-out *= fade
-out = out / max(1e-9, np.max(np.abs(out))) * 0.89
+fade[-int(0.6 * SR):] = np.linspace(1, 0, int(0.6 * SR))
+out *= fade[:, None]
+out = np.tanh(out * 0.9)
+out = out / max(1e-9, np.max(np.abs(out))) * 0.5
 pcm = (out * 32767).astype(np.int16)
-stereo = np.column_stack([pcm, pcm]).ravel()
-with wave.open(sys.argv[1] if len(sys.argv) > 1 else "promo.wav", "wb") as w:
+with wave.open(out_path, "wb") as w:
     w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
-    w.writeframes(stereo.tobytes())
+    w.writeframes(pcm.tobytes())
 print("ok", round(len(pcm) / SR, 2), "s")

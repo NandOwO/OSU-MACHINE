@@ -3,3 +3,4 @@ dist
 fixtures/private
 prototipo/video/out
 *.mp4
+prototipo/video/private
