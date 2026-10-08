@@ -9,6 +9,8 @@ const DEV = args.has("--dev");
 const WINDOWED = DEV || args.has("--windowed");
 const urlArg = process.argv.find((a) => a.startsWith("--url="))?.slice(6);
 
+// A fixed name gives a predictable data folder (%APPDATA%\POIPIU on Windows).
+app.setName("POIPIU");
 // Tests can point the data folder somewhere else.
 if (process.env.POIPIU_DATA_DIR) app.setPath("userData", process.env.POIPIU_DATA_DIR);
 if (process.argv.includes("--no-sandbox")) app.commandLine.appendSwitch("no-sandbox");
@@ -23,7 +25,7 @@ let store, content;
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 720, backgroundColor: "#07061a", show: false, title: "POIPIU",
+    width: 1280, height: 720, backgroundColor: "#07061a", show: false, title: "POIPIU", icon: join(here, "..", "build", "icon.png"),
     fullscreen: !WINDOWED, kiosk: !WINDOWED, frame: WINDOWED, autoHideMenuBar: true,
     webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, devTools: DEV, spellcheck: false },
   });

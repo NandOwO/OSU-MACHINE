@@ -75,7 +75,7 @@ npm run electron:dev      # ventana con herramientas de desarrollo (usa el servi
 - `electron/main.mjs`: ventana en modo kiosco, una sola instancia, navegación y ventanas nuevas bloqueadas, música sin necesidad de clic, recarga automática si la página se cae. Se sale con **Ctrl+Shift+Q**.
 - `electron/preload.cjs`: único puente hacia la página (`window.poipiuHost`). La página no tiene acceso a Node ni al sistema de archivos.
 - `electron/store.mjs`: datos de la máquina (tarjetas, rankings, reglas) en archivos JSON con **escritura atómica** (archivo temporal + `fsync` + renombrar): un corte de luz deja el valor viejo o el nuevo, nunca uno a medias. Los mapas y skins viven en la carpeta `content/`.
-- Los datos están en la carpeta de usuario de la aplicación (`~/.config/POIPIU` en Linux); `POIPIU_DATA_DIR` la cambia.
+- Los datos están en la carpeta de usuario de la aplicación (`%APPDATA%\POIPIU` en Windows, `~/.config/POIPIU` en Linux); `POIPIU_DATA_DIR` la cambia.
 - Desviación del plan: archivos JSON en lugar de SQLite. Con un volumen de unas decenas de tarjetas y rankings no hace falta una base de datos, y evita un módulo nativo que compilar para cada máquina.
 - Atajos como F5 no recargan la página de todos modos (la aplicación no tiene menú); el filtro de teclas queda como defensa adicional y **no se probó que sea necesario**.
 
@@ -83,7 +83,7 @@ npm run electron:dev      # ventana con herramientas de desarrollo (usa el servi
 
 | Comando | Qué cubre |
 |---|---|
-| `npm test` | 65 pruebas: puntaje, parser, motor, equivalencia con replays reales, reglas del negocio |
+| `npm test` | 80 pruebas: puntaje, parser, motor, equivalencia con replays reales, reglas del negocio |
 | `npm run e2e -- mapa.osz skin.osk` | un mapa real con autoplay en Chromium |
 | `xvfb-run -a node tools/e2e-electron.mjs mapa.osz` | el kiosco real: contenido, tarjeta, reglas y ranking sobreviven a un reinicio; salir con Ctrl+Shift+Q |
 | `node tools/e2e-live.mjs mapa.osz` | tiempo real: un mouse real acierta círculos y el reloj de audio corre |
@@ -101,10 +101,13 @@ npm run electron:dev      # ventana con herramientas de desarrollo (usa el servi
 | 6 | Ranking top 50 con nombre, tickets en tarjeta, canje de premios | Hecho |
 | 7 | Persistencia, modo operador, configuración | Hecho en web (localStorage + IndexedDB); falta SQLite para el kiosco |
 | 8 | Kiosco en Electron: pantalla completa, datos en archivos, contenido en carpeta | Hecho (falta generar el instalador) |
+| 8b | Barra de vida: se puede perder una partida (sin tickets ni ranking) | Hecho |
+| 8c | Paquete para Windows | Portátil generado; instalador y scripts de kiosco **sin probar en Windows** (ver `docs/WINDOWS.md`) |
 | 9 | Pulido: animaciones, sonidos de interfaz, spinner validado, rendimiento en la máquina | Pendiente |
 
 ## Límites conocidos
 
 - El spinner usa una regla de lazer y no está validado contra puntajes reales.
-- No hay barra de vida ni fallo: una partida siempre termina (decisión de arcade, a confirmar).
+- La barra de vida se calibró con tres replays (dos terminaron en fallo, una se completó). Los datos no fijan valores únicos: hay muchos conjuntos de parámetros que reproducen los mismos tres resultados, y el motor falla hasta 0,25 s después de que terminó la replay real. Conviene ajustarla jugando (`src/engine/health.ts`, `tools/hp-search.ts`).
+- La vida solo cambia con el resultado de cada objeto; los ticks de slider no la afectan.
 - La demostración de fondo y las vistas previas de skin se dibujan con el mismo renderer, pero la vista previa de audio solo funciona fuera del modo de pruebas.
