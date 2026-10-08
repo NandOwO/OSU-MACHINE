@@ -60,6 +60,9 @@ export class PlayScene {
     else this.bindInput();
   }
 
+  /** Current song time in ms. */
+  time(): number { return this.clock.now(); }
+
   dispose(): void { for (const d of this.disposers) d(); this.disposers = []; }
 
   // ------------------------------------------------------------------ input

@@ -268,7 +268,7 @@ export class KioskApp {
     }
     const skin = this.library.skins[this.skinIdx] ?? this.library.skins[0]!;
     this.scene = new PlayScene(this.canvas, map, skin, clock, this.manual ? null : audio, {
-      auto: this.manual && new URLSearchParams(location.search).has("bot"),
+      auto: new URLSearchParams(location.search).has("bot"),
       onFinish: (r) => this.onPlayFinished(e, skin.name, r),
     });
     this.showScreen();
@@ -279,6 +279,15 @@ export class KioskApp {
     this.stopSong?.(); this.stopSong = null;
     this.scene?.dispose(); this.scene = null;
     this.machine.finishPlay({ mapKey: e.mapKey, objects: r.objects, score: r.score, maxScore: e.maxScore, accuracy: r.accuracy, maxCombo: r.maxCombo, n300: r.n300, n100: r.n100, n50: r.n50, miss: r.miss, skin: skinName });
+  }
+
+  /** Test hook: plays a tutorial map directly (no deposit, no audio) on a real-time clock. */
+  async debugPlay(step: 1 | 2 | 3 = 1): Promise<PlayScene> {
+    const { tutorialMap } = await import("./tutorialMap.js");
+    this.stopAmbient(); this.scene?.dispose();
+    this.screenEl?.remove(); this.screenEl = null;
+    this.scene = new PlayScene(this.canvas, tutorialMap(step), this.library.skins[0]!, new LoopClock(-1500), null, { countdown: false });
+    return this.scene;
   }
 
   /** Leaves a play in progress; the play is not refunded. */
