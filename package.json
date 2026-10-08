@@ -17,11 +17,13 @@
     "package:win": "vite build && electron-builder --win nsis zip --x64 --publish never",
     "package:win:portable": "vite build && electron-builder --win zip --x64 --publish never -c.win.signAndEditExecutable=false"
   },
+  "dependencies": {
+    "fflate": "0.8.2"
+  },
   "devDependencies": {
     "@types/node": "22.10.2",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "fflate": "0.8.2",
     "lzma": "2.3.2",
     "playwright-core": "^1.49.1",
     "tsx": "^4.19.2",
