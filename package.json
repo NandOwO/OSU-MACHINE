@@ -10,10 +10,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "e2e": "node tools/e2e-smoke.mjs"
+    "e2e": "node tools/e2e-smoke.mjs",
+    "electron": "vite build && electron electron/main.mjs",
+    "electron:dev": "electron electron/main.mjs --dev --url=http://localhost:5173",
+    "e2e:electron": "node tools/e2e-electron.mjs"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "electron": "^33.2.1",
     "playwright-core": "^1.49.1",
     "tsx": "^4.19.2",
     "typescript": "5.6.3",
@@ -23,5 +27,6 @@
   "dependencies": {
     "fflate": "0.8.2",
     "lzma": "2.3.2"
-  }
+  },
+  "main": "electron/main.mjs"
 }

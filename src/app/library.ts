@@ -17,8 +17,15 @@ async function sha(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(d)].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Raw archives kept in IndexedDB so the library survives reloads and restarts. */
-export class ContentStore {
+/** Where installed archives are kept between runs. */
+export interface ContentBackend {
+  put(name: string, bytes: Uint8Array): Promise<void>;
+  remove(name: string): Promise<void>;
+  all(): Promise<{ name: string; bytes: Uint8Array }[]>;
+}
+
+/** Raw archives kept in IndexedDB so the library survives reloads and restarts (browser build). */
+export class ContentStore implements ContentBackend {
   private db: Promise<IDBDatabase>;
   constructor(name = "poipiu-content") {
     this.db = new Promise((res, rej) => {
@@ -43,7 +50,7 @@ export class Library {
   readonly skins: Skin[] = [createDefaultSkin()];
   readonly packs: Pack[] = [];
   private n = 0;
-  constructor(private readonly store: ContentStore | null = null) {}
+  constructor(private readonly store: ContentBackend | null = null) {}
 
   /** Loads everything saved in the content store. */
   async restore(): Promise<void> {

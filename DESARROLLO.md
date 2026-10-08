@@ -65,12 +65,28 @@ Flujo de pantallas: `idle → credited → tutorial → skin → map → playing
 
 El hardware está **simulado**: `C` = moneda, `T` = tarjeta (`Y` cambia de tarjeta, `Shift+T` crea una nueva), más botones en la barra inferior. Panel de operador: `Ctrl+Shift+O`.
 
+## El kiosco (Electron)
+
+```
+npm run electron          # compila la web y abre la máquina a pantalla completa
+npm run electron:dev      # ventana con herramientas de desarrollo (usa el servidor de Vite)
+```
+
+- `electron/main.mjs`: ventana en modo kiosco, una sola instancia, navegación y ventanas nuevas bloqueadas, música sin necesidad de clic, recarga automática si la página se cae. Se sale con **Ctrl+Shift+Q**.
+- `electron/preload.cjs`: único puente hacia la página (`window.poipiuHost`). La página no tiene acceso a Node ni al sistema de archivos.
+- `electron/store.mjs`: datos de la máquina (tarjetas, rankings, reglas) en archivos JSON con **escritura atómica** (archivo temporal + `fsync` + renombrar): un corte de luz deja el valor viejo o el nuevo, nunca uno a medias. Los mapas y skins viven en la carpeta `content/`.
+- Los datos están en la carpeta de usuario de la aplicación (`~/.config/POIPIU` en Linux); `POIPIU_DATA_DIR` la cambia.
+- Desviación del plan: archivos JSON en lugar de SQLite. Con un volumen de unas decenas de tarjetas y rankings no hace falta una base de datos, y evita un módulo nativo que compilar para cada máquina.
+- Atajos como F5 no recargan la página de todos modos (la aplicación no tiene menú); el filtro de teclas queda como defensa adicional y **no se probó que sea necesario**.
+
 ## Pruebas
 
 | Comando | Qué cubre |
 |---|---|
-| `npm test` | 60 pruebas: puntaje, parser, motor, equivalencia con replays reales, reglas del negocio |
+| `npm test` | 65 pruebas: puntaje, parser, motor, equivalencia con replays reales, reglas del negocio |
 | `npm run e2e -- mapa.osz skin.osk` | un mapa real con autoplay en Chromium |
+| `xvfb-run -a node tools/e2e-electron.mjs mapa.osz` | el kiosco real: contenido, tarjeta, reglas y ranking sobreviven a un reinicio; salir con Ctrl+Shift+Q |
+| `node tools/e2e-live.mjs mapa.osz` | tiempo real: un mouse real acierta círculos y el reloj de audio corre |
 | `node tools/e2e-kiosk.mjs mapa.osz skin.osk` | la máquina completa: tarjeta, tutorial, skin, mapa, 3 partidas con el bot, nombre, ranking y canje |
 
 ## Hoja de ruta
@@ -84,7 +100,7 @@ El hardware está **simulado**: `C` = moneda, `T` = tarjeta (`Y` cambia de tarje
 | 5 | Flujo: tutorial, skin, mapa con preview, resultados | Hecho (tutorial es una demostración, no práctica interactiva) |
 | 6 | Ranking top 50 con nombre, tickets en tarjeta, canje de premios | Hecho |
 | 7 | Persistencia, modo operador, configuración | Hecho en web (localStorage + IndexedDB); falta SQLite para el kiosco |
-| 8 | Empaquetado en Electron, kiosco a pantalla completa | Pendiente |
+| 8 | Kiosco en Electron: pantalla completa, datos en archivos, contenido en carpeta | Hecho (falta generar el instalador) |
 | 9 | Pulido: animaciones, sonidos de interfaz, spinner validado, rendimiento en la máquina | Pendiente |
 
 ## Límites conocidos
