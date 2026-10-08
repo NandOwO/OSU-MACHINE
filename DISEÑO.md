@@ -35,7 +35,7 @@ Réplica del modo **osu!standard** (el de cursor, no mania ni taiko) con temáti
 **Fuera de v1**
 - Hardware real, multijugador, online, descarga de mapas desde osu! web.
 - Modos mania, taiko, catch. Edición de mapas.
-- Sliders y spinners completos: en v1 solo círculos (los sliders se tratan como círculos).
+- Spinners: pendientes. Si el mapa de validación (§5, caso #2) tiene alguno, entran en v1.
 
 ---
 
@@ -342,9 +342,12 @@ D = round( ( HP + CS + OD + clamp( n_objetos / t_drenaje_seg × 8, 0, 16 ) ) / 3
 
 > **Estado de verificación.** No pude abrir la wiki de osu! desde este entorno (el proxy la bloquea). La estructura `V + V·(C·D·M)/25`, el `C = combo − 1` con piso en 0 y la forma de `D` (÷38, ×5, redondeo, densidad acotada a 0–16) coinciden con el resumen de la wiki que devolvió la búsqueda y con mi conocimiento previo, pero **no comparé contra la página**. Antes de dar por cerrado el módulo, validar con un resultado real conocido: tomar un mapa y un replay/puntaje publicado y comprobar que el cálculo da el mismo número.
 
-**Sliders y spinners:** en v1 cada slider se juzga como un círculo (un solo juicio). Los bonus de ticks, extremos y spinners de ScoreV1 se agregan en v2.
+**Sliders (decidido: entran en v1).** En el puntaje oficial el combo cuenta también los ticks y extremos de los sliders (ver los casos de validación: 331 y 321 de combo con 194 y 283 objetos). Para acercarse al puntaje de osu! hay que modelar cada slider como un conjunto de elementos: cabeza, ticks, repeticiones y extremo. Los valores de bonus de ScoreV1 que recuerdo son 30 (cabeza, repetición y extremo) y 10 (tick), planos y sin multiplicador de combo, pero **no están verificados**: se confirman con el caso #2.
 
-> **Consecuencia para la fidelidad con osu!.** En el puntaje oficial el combo cuenta también los ticks y extremos de los sliders (ver el caso de validación de abajo: 331 de combo con solo 194 objetos). Con sliders tratados como círculos, los puntajes de mapas con sliders **no coincidirán** con los de osu!. Las pruebas de coincidencia exacta deben hacerse con un mapa de solo círculos hasta que el scoring de sliders esté implementado.
+Consecuencias de diseño:
+- El motor necesita seguir el cursor dentro del slider (la "bola"): perder el seguimiento rompe ticks y extremo.
+- La geometría de sliders (Bézier, lineal, perfecto/arco, Catmull) es parte de v1.
+- Los **spinners** quedan para cuando un caso de validación los requiera.
 
 **Caso de validación #1 (captura real, pendiente de datos del mapa):**
 
@@ -361,7 +364,29 @@ Lo que sí se verifica con la captura:
 - **Precisión:** `(300·188 + 100·6) / (300·194) = 57 000 / 58 200 = 97,938 %`. La captura muestra 97,93 %, o sea coincide cortando (no redondeando) el tercer decimal. La fórmula de §5 queda confirmada.
 - **Combo > objetos:** 331 de combo con 194 objetos prueba que los ticks y extremos de los sliders suman combo en el puntaje oficial.
 
-Lo que **no** se puede verificar todavía:
+**Caso de validación #2 (replay `.osr`, el mejor candidato):**
+
+Datos leídos del archivo `Thericks - DIALOGUE - Deneb to Spica (TV Size) [Erisus' Insane]`, replay del 2026-10-02:
+
+| Dato del replay | Valor |
+|---|---|
+| Modo | 0 (osu!standard) |
+| Hash MD5 del mapa | `58a613f1f28b2b9388413b4ef5a30dd3` |
+| Mods | **ninguno** (`M = 1`) |
+| Puntaje | 1 587 776 |
+| 300 / 100 / 50 / Miss | 236 / 39 / 1 / 7 |
+| Geki / Katu | 37 / 21 |
+| Combo máximo | 321x |
+| Objetos totales | 283 (236 + 39 + 1 + 7) |
+| Frames de cursor | 5 268 |
+
+- **Precisión:** `(300·236 + 100·39 + 50·1) / (300·283) = 74 750 / 84 900 = 88,04 %`.
+- **Por qué sirve:** no tiene mods y trae el movimiento del cursor y las teclas. Con el mapa, se puede **reproducir la partida en el motor** y comprobar que da las mismas cuentas de 300/100/50/miss, el mismo combo máximo y el mismo puntaje.
+- **No coincide con la captura del caso #1** (otra fecha, otro puntaje, otros juicios). Son dos partidas distintas.
+- **Prueba de aceptación:** el motor, alimentado con el replay y el `.osu`, debe dar exactamente 236/39/1/7, combo 321 y puntaje 1 587 776. Mientras no coincida el puntaje, se localiza qué elemento (cabeza, tick, extremo) difiere.
+- **Falta:** el `.osz` (o el `.osu`) de ese mapa. El replay solo guarda el hash, no el mapa. Con el hash `58a613f1…` se confirma que es la dificultad correcta.
+
+Lo que **no** se puede verificar con el caso #1:
 - El puntaje 1 386 005 exige conocer HP, CS, OD, el tiempo de drenaje y la estructura de sliders del mapa, y la captura no muestra el nombre del mapa. Además hay dos íconos de mods sobre el puntaje y no los identifico; si hay un mod con multiplicador, `M ≠ 1`.
 - Para cerrar la validación falta el **`.osz` de ese mapa** (o su nombre y dificultad) y qué mods se usaron. Con el `.osz` se calcula el puntaje esperado y se compara.
 
@@ -547,7 +572,7 @@ Un **modo operador** (con una combinación de teclas oculta) permite cambiar `co
 
 1. **Parser `.osu` + tests**: leer un mapa real y listar los `HitObjects`.
 2. **Importador `.osz`** con fflate: indexar mapas y skins.
-3. **ScoreV1 y juicios** en consola, con tests contra valores de la wiki de osu!.
+3. **ScoreV1, juicios y sliders** en consola, con tests de los vectores de §5 y **validación con el replay `.osr`** del caso #2 (lector de `.osr` incluido).
 4. **Renderer PixiJS**: círculos, aro de approach, HUD, juicios. Skin default.
 5. **Pantallas**: attract → selección de mapa con preview → juego → resultados.
 6. **Créditos, jugadas y tarjeta simulada** con UID y saldo de tickets.
@@ -567,9 +592,11 @@ Criterio de aceptación: un `.osz` real se carga, suena el preview, el mapa se j
 - Catálogo de premios: definido en §4.2 con precios estimados para Perú.
 
 **Abiertas**
-1. **Validación de ScoreV1** (§5, caso #1): falta el `.osz` del mapa de la captura y los mods usados.
-2. **Alcance de sliders**: ¿se implementa el scoring de sliders en v1 para acercarse al puntaje oficial, o se valida solo con mapas de círculos y los sliders pasan a v2?
+1. **Validación de ScoreV1** (§5, caso #2): falta el `.osz` de *Deneb to Spica (TV Size) [Erisus' Insane]*, hash `58a613f1f28b2b9388413b4ef5a30dd3`.
+2. **Captura del caso #1**: ¿de qué mapa es? No aparece en la imagen. Sirve de segunda validación si se tiene su `.osz`.
 3. **Precio del depósito**: S/ 6 por 3 jugadas es un supuesto sin dato de mercado detrás.
+
+**Resuelta:** los sliders entran en v1 (§5).
 
 ---
 
