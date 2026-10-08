@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { zipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
-import { OsuSupervisor, findCfg, findReplay, readOsuConfig, setSkinInCfg, skinFolderFor, syncContent } from "../electron/osuHost.mjs";
+import { OsuSupervisor, readSongFile, songsDir, findCfg, findReplay, readOsuConfig, setSkinInCfg, skinFolderFor, syncContent } from "../electron/osuHost.mjs";
 
 const tmp = () => mkdtempSync(join(tmpdir(), "poipiu-osu-"));
 const zip = (files: Record<string, string>) => zipSync(Object.fromEntries(Object.entries(files).map(([k, v]) => [k, strToU8(v)])));
@@ -81,5 +81,35 @@ describe("OsuSupervisor (fake programs)", () => {
     await wait(200);
     expect(sup.status().osu).toBe(true);
     sup.stopAll();
+  });
+});
+
+describe("reading maps from osu!'s songs folder", () => {
+  const setup = () => {
+    const osu = tmp(); const dir = join(osu, "Songs", "123 Artist - Title"); mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "map.osu"), "osu file format v14"); writeFileSync(join(dir, "bg.jpg"), "jpg"); writeFileSync(join(dir, "audio.mp3"), "mp3");
+    writeFileSync(join(osu, "secret.osu"), "outside");
+    return { osu, dir };
+  };
+  it("reads the .osu and the background of a map", () => {
+    const { osu, dir } = setup();
+    expect(new TextDecoder().decode(readSongFile(osu, dir, "map.osu")!)).toBe("osu file format v14");
+    expect(readSongFile(osu, dir, "bg.jpg")).not.toBeNull();
+  });
+  it("refuses other file types, paths that leave the songs folder, and missing files", () => {
+    const { osu, dir } = setup();
+    expect(readSongFile(osu, dir, "audio.mp3")).toBeNull();
+    expect(readSongFile(osu, dir, "../../secret.osu")).toBeNull();
+    expect(readSongFile(osu, osu, "secret.osu")).toBeNull();
+    expect(readSongFile(osu, "C:\\Windows", "x.osu")).toBeNull();
+    expect(readSongFile(osu, dir, "nope.osu")).toBeNull();
+    expect(readSongFile(osu, dir, "map.osu", { maxBytes: 3 } as never)).toBeNull();
+  });
+  it("follows BeatmapDirectory from osu!'s config", () => {
+    const osu = tmp(); const custom = tmp();
+    writeFileSync(join(osu, "osu!.u.cfg"), `BeatmapDirectory = ${custom}\n`);
+    expect(songsDir(osu)).toBe(custom);
+    mkdirSync(join(custom, "m")); writeFileSync(join(custom, "m", "a.osu"), "x");
+    expect(readSongFile(osu, join(custom, "m"), "a.osu")).not.toBeNull();
   });
 });

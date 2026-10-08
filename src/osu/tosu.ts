@@ -20,6 +20,8 @@ export function normalizeTosu(raw: Raw): OsuSnapshot {
   const bm = raw.beatmap ?? {}, play = raw.play ?? {}, res = raw.resultsScreen ?? {};
   const src = s.state === "result" && res.score !== undefined ? res : play;
   s.osuFile = raw.files?.beatmap ?? bm.file ?? undefined;
+  s.dir = raw.directories?.beatmap ?? undefined;
+  s.background = raw.files?.background ?? undefined;
   s.md5 = bm.checksum ?? bm.md5 ?? undefined;
   s.title = bm.title; s.artist = bm.artist; s.version = bm.version;
   const mods = src.mods?.name ?? play.mods?.name ?? "";
@@ -79,7 +81,8 @@ export function toTosuMessage(s: OsuSnapshot): Raw {
   return {
     state: { name },
     beatmap: { title: s.title, artist: s.artist, version: s.version, checksum: s.md5, time: { live: s.timeMs } },
-    files: { beatmap: s.osuFile },
+    directories: { beatmap: s.dir },
+    files: { beatmap: s.osuFile, background: s.background },
     play,
     resultsScreen: s.state === "result" ? { ...play, replayFile: s.replayFile } : {},
   };

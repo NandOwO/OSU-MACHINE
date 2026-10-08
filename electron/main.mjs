@@ -79,6 +79,7 @@ function registerIpc() {
   ipcMain.handle("osu:prepare", (_e, skinFile) => (osu ? osu.prepare(typeof skinFile === "string" ? skinFile : null) : null));
   ipcMain.handle("osu:stop", () => { osu?.stopOsu(); return true; });
   ipcMain.handle("osu:findReplay", async (_e, sinceMs) => { const b = osu ? await osu.findReplay(Number(sinceMs) || 0) : null; return b ? new Uint8Array(b) : null; });
+  ipcMain.handle("osu:readSongFile", (_e, dir, file) => osu?.readSongFile(dir, file) ?? null);
   ipcMain.handle("osu:status", () => osu?.status() ?? null);
   app.on("before-quit", () => osu?.stopAll());
   ipcMain.on("app:quit", () => app.quit());

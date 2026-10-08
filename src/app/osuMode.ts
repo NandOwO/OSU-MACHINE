@@ -1,10 +1,13 @@
-import { OsuBridge, type BridgeEvent } from "../osu/bridge.js";
+import { parseBeatmap } from "../beatmap/parser.js";
+import { applyStacking } from "../beatmap/stacking.js";
+import { maxScoreV1 } from "../scoring/maxScore.js";
+import { OsuBridge, type BridgeEvent, type MapRef } from "../osu/bridge.js";
 import { scenarioSnapshots, type Scenario } from "../osu/mock.js";
 import { ManualFeed, TosuFeed, normalizeTosu } from "../osu/tosu.js";
 import type { OsuSnapshot } from "../osu/types.js";
 import type { KioskApp } from "./kiosk.js";
 import { getHost } from "./host.js";
-import type { LibEntry } from "./library.js";
+import { sha, type LibEntry } from "./library.js";
 
 const base = (p?: string) => (p ?? "").split(/[\\/]/).pop()!.toLowerCase();
 
@@ -25,9 +28,40 @@ export function installOsuMode(app: KioskApp, source: "tosu" | "mock"): void {
   app.osu = state;
   const host = source === "tosu" ? getHost() : null;
   let playStart = Date.now();
+
+  // The map osu! plays is read from osu!'s own songs folder (through the kiosk), so it does not need to be imported
+  // into POIPIU. The score ceiling, object count and background come from that file.
+  const refs = new Map<string, MapRef>();
+  const covers = new Map<string, string>();
+  const fromDisk = async (s: OsuSnapshot): Promise<MapRef | null> => {
+    if (!host || !s.dir || !s.osuFile) return null;
+    const key = `${s.dir}|${s.osuFile}`;
+    let ref = refs.get(key) ?? null;
+    if (!ref) {
+      const bytes = await host.osuReadSongFile(s.dir, s.osuFile);
+      if (!bytes) return null;
+      try {
+        const map = applyStacking(parseBeatmap(new TextDecoder("utf-8").decode(bytes)));
+        ref = { mapKey: await sha(bytes), map, maxScore: maxScoreV1(map) };
+        refs.set(key, ref);
+      } catch { return null; }
+    }
+    if (s.background) {
+      const ck = `${s.dir}|${s.background}`;
+      let url = covers.get(ck);
+      if (!url) {
+        const img = await host.osuReadSongFile(s.dir, s.background);
+        if (img) { url = URL.createObjectURL(new Blob([img as BlobPart])); covers.set(ck, url); }
+      }
+      if (url) app.setCover(url);
+    }
+    return ref;
+  };
+  const fromLibrary = (s: OsuSnapshot): MapRef | null => { const e = resolveEntry(app, s); return e ? { mapKey: e.mapKey, map: e.entry.beatmap, maxScore: e.maxScore } : null; };
+
   const bridge = new OsuBridge(app.machine, {
     findReplay: host ? () => host.osuFindReplay(playStart - 2000) : undefined,
-    resolve: (s) => { const e = resolveEntry(app, s); return e ? { mapKey: e.mapKey, map: e.entry.beatmap, maxScore: e.maxScore } : null; },
+    resolve: async (s) => (await fromDisk(s)) ?? fromLibrary(s),
     // Verification needs the .osr; in the simulation there is none, so it only logs.
     verify: source === "tosu" ? (({ strict: "strict", log: "log", off: "off" } as const)[new URLSearchParams(location.search).get("verify") ?? ""] ?? "strict") : "log",
     onEvent: (ev: BridgeEvent) => {

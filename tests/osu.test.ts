@@ -126,6 +126,11 @@ describe("OsuBridge: a real osu! play becomes a play of the machine", () => {
     await bridge.idle();
     expect(events.some((e) => e.type === "violation")).toBe(true);
   });
+  it("a map resolved asynchronously (read from osu!'s folder) is paid", async () => {
+    const { m, run } = setup({ resolve: async () => { await new Promise((r) => setTimeout(r, 5)); return ref; } });
+    await run("complete");
+    expect(m.results!.tickets).toBe(100);
+  });
   it("an unknown map is not paid", async () => {
     const { m, run } = setup({ resolve: () => null });
     await run("complete");
@@ -168,6 +173,10 @@ describe("tosu adapter", () => {
     expect(s.mods).toEqual(["HD", "DT"]);
     expect(s.accuracy).toBeCloseTo(0.975);
     expect(s.hp).toBeCloseTo(0.5);
+  });
+  it("reads the song folder and background tosu reports", () => {
+    const s = normalizeTosu({ state: { name: "play" }, directories: { beatmap: "C:\\osu\\Songs\\1 A - B" }, files: { beatmap: "m.osu", background: "bg.jpg" } });
+    expect(s).toMatchObject({ dir: "C:\\osu\\Songs\\1 A - B", osuFile: "m.osu", background: "bg.jpg" });
   });
   it("maps state names and survives missing fields", () => {
     expect(normalizeTosu({ state: { name: "resultScreen" } }).state).toBe("result");

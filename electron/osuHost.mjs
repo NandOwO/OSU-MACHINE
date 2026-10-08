@@ -1,7 +1,7 @@
 // Option B, Electron side: keeps osu! and tosu running, installs maps/skins into osu!, sets the skin, finds the .osr.
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, normalize, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, normalize, resolve, sep } from "node:path";
 import { unzipSync } from "fflate";
 import { safeName } from "./store.mjs";
 
@@ -123,5 +123,35 @@ export class OsuSupervisor {
   stopOsu() { this.osu.stop(); }
   stopAll() { this.osu.stop(); this.tosu?.stop(); }
   findReplay(sinceMs, opts) { return findReplay(this.cfg.osuDir, sinceMs, opts); }
+  readSongFile(dir, file) { return readSongFile(this.cfg.osuDir, dir, file); }
   status() { return { osu: this.osu.running, tosu: this.tosu?.running ?? false, osuRestarts: this.osu.restarts }; }
+}
+
+/** The folder osu! reads songs from: `BeatmapDirectory` in its config (relative to the osu! folder), default `Songs`. */
+export function songsDir(osuDir) {
+  const cfg = findCfg(osuDir);
+  let dir = "Songs";
+  if (cfg) { const m = /^BeatmapDirectory\s*=\s*(.+?)\s*$/m.exec(readFileSync(cfg, "utf8")); if (m && m[1]) dir = m[1]; }
+  return resolve(osuDir, dir);
+}
+
+const inside = (base, target) => {
+  const b = normalize(base) + sep, t = normalize(target);
+  return process.platform === "win32" ? t.toLowerCase().startsWith(b.toLowerCase()) : t.startsWith(b);
+};
+
+/**
+ * Reads a file of the song library (a .osu, its background...) for the page. `dir` and `file` come from tosu, so they are
+ * only trusted when the result stays inside the songs folder and has an expected extension and size.
+ */
+export function readSongFile(osuDir, dir, file, { maxBytes = 20 * 1024 * 1024 } = {}) {
+  try {
+    if (typeof dir !== "string" || typeof file !== "string" || !file || file.includes("..")) return null;
+    if (!/\.(osu|jpe?g|png|bmp|gif)$/i.test(file)) return null;
+    const base = songsDir(osuDir);
+    const target = resolve(isAbsolute(dir) ? dir : join(base, dir), file);
+    if (!inside(base, target) || !existsSync(target)) return null;
+    if (statSync(target).size > maxBytes) return null;
+    return new Uint8Array(readFileSync(target));
+  } catch { return null; }
 }

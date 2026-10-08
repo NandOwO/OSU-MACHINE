@@ -15,7 +15,7 @@ export type BridgeEvent =
 
 export interface BridgeOptions {
   /** Finds the map osu! is playing among the maps of the machine. null = not one of ours: it does not pay. */
-  resolve: (s: OsuSnapshot) => MapRef | null;
+  resolve: (s: OsuSnapshot) => MapRef | null | Promise<MapRef | null>;
   /** Returns the .osr osu! saved for this play (poll for it if needed), or null. */
   findReplay?: (s: OsuSnapshot, ref: MapRef) => Promise<Uint8Array | null>;
   /** Mods that may be used. Default none (NoMod only). */
@@ -55,7 +55,7 @@ export class OsuBridge {
       if (this.best) await this.closeResult(); // a new play started before the result timer fired
       if (this.active && s.timeMs < this.active.last.timeMs - 1500) await this.end(null, "REINTENTO"); // restarted: the old play is lost
       if (!this.active) {
-        const ref = this.opt.resolve(s);
+        const ref = await Promise.resolve(this.opt.resolve(s)).catch(() => null);
         const counted = this.machine.startPlay();
         if (!counted) { this.rogue = true; this.emit({ type: "violation", reason: "JUGANDO SIN JUGADAS" }); return; }
         this.active = { ref, last: s, counted };

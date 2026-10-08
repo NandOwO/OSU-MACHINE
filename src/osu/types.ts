@@ -5,6 +5,9 @@ export interface OsuSnapshot {
   state: OsuState;
   /** The .osu file being played (absolute path or just the file name) and/or its metadata. */
   osuFile?: string;
+  /** Folder of the map in osu!'s songs folder, and the file names of its background. */
+  dir?: string;
+  background?: string;
   md5?: string;
   title?: string;
   artist?: string;

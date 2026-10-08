@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("poipiuHost", {
   osuPrepare: (skinFile) => ipcRenderer.invoke("osu:prepare", skinFile ?? null),
   osuStop: () => ipcRenderer.invoke("osu:stop"),
   osuFindReplay: (sinceMs) => ipcRenderer.invoke("osu:findReplay", sinceMs),
+  osuReadSongFile: (dir, file) => ipcRenderer.invoke("osu:readSongFile", dir, file),
   osuStatus: () => ipcRenderer.invoke("osu:status"),
   quit: () => ipcRenderer.send("app:quit"),
 });

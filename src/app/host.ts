@@ -15,6 +15,7 @@ export interface PoipiuHost {
   osuPrepare(skinFile?: string | null): Promise<{ synced: { maps: string[]; skins: string[] }; skinSet: boolean } | null>;
   osuStop(): Promise<boolean>;
   osuFindReplay(sinceMs: number): Promise<Uint8Array | null>;
+  osuReadSongFile(dir: string, file: string): Promise<Uint8Array | null>;
   osuStatus(): Promise<{ osu: boolean; tosu: boolean; osuRestarts: number } | null>;
   quit(): void;
 }
